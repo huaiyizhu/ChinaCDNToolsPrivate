@@ -17,6 +17,10 @@ namespace ReadKeyvault
         public string Name { get; set; }
         public string ClientId { get; set; }
         public string CertificateThumbprint { get; set; }
+
+        public bool UseSecret { get; set; }
+
+        public Func<string> SecretRetriever { get; set; }
     }
 
     public class KeyVaultSettingInfo
@@ -77,6 +81,8 @@ namespace ReadKeyvault
 
                     //"SMTPBackupAccountPassword",
                     //"SMTPPrimaryAccountPassword",
+
+                    //"CertificateRepositoryKeyVaultClientSecret",
 
                 //"cdpx-acr-appid",
                 //"cdpx-acr-key",
@@ -336,9 +342,19 @@ namespace ReadKeyvault
             //dstkv.ImportCertificates(certificates).Wait();
         }
 
+        private static string KeyvaultReaderSecretRetriever()
+        {
+            var kvInfo = PredefinedKeyVaults["mccdn-prodsecrets-holder"];
+
+            KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
+            var secret = kv.GetSecret("CertificateRepositoryKeyVaultClientSecret");
+            return secret;
+        }
+
         private static KeyVaultSettingInfo PrepareDstKeyVaultInfo()
         {
             return PredefinedKeyVaults["mccdn-prodsecrets-holder"];
+            //return PredefinedKeyVaults["mccdnintkvn2"];
             //return PredefinedKeyVaults["mccdncoreconfig"];
             //return PredefinedKeyVaults["mccdnkeyvault"];
         }
@@ -346,9 +362,9 @@ namespace ReadKeyvault
         private static KeyVaultSettingInfo PrepareSrcKeyVaultInfo()
         {
             //return PredefinedKeyVaults["mccdndeployprodv2-cme"];
-            //return PredefinedKeyVaults["mccdndeployprod-cme"];
+            return PredefinedKeyVaults["mccdndeployprod-cme"];
             //return PredefinedKeyVaults["mccdn-prodsecrets-holder"];
-            return PredefinedKeyVaults["mccdnkeyvault"];
+            //return PredefinedKeyVaults["mccdnkeyvault"];
         }
 
         private static readonly Dictionary<string, AADSettingInfo> PredefinedAADInfo = new Dictionary<string, AADSettingInfo>()
@@ -356,7 +372,8 @@ namespace ReadKeyvault
             .AddAADSettingInfo("KeyVaultMcCdnDeployTestByCertApp", "e5853e7a-fb1d-439d-ac66-ca22b1054fc4", "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
             .AddAADSettingInfo("KeyVaultMcCdnDeployProdCMEByCertApp2", "5c83117e-eb3b-40c2-9afc-545893059b36", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
             .AddAADSettingInfo("KeyVaultMcCdnDeployProdByCertApp2", "000be46d-6e2e-4ab9-b6f4-996e4d1e834d", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
-            .AddAADSettingInfo("KeyVaultMcCCSDeployProdCMEByCertApp3", "9a1a38f5-a221-4d21-9f3b-7655665f33fa", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25");
+            .AddAADSettingInfo("KeyVaultMcCCSDeployProdCMEByCertApp3", "9a1a38f5-a221-4d21-9f3b-7655665f33fa", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
+            .AddAADSettingInfo("mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, true, KeyvaultReaderSecretRetriever);
 
         private static readonly Dictionary<string, KeyVaultSettingInfo> PredefinedKeyVaults = new Dictionary<string, KeyVaultSettingInfo>()
             .AddKeyVault("mccdnintkvn2", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
@@ -368,14 +385,16 @@ namespace ReadKeyvault
             .AddKeyVault("mccdnkeyvault", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             .AddKeyVault("mccdnprod", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             .AddKeyVault("sfmccdnprodkv", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
-            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+//            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["mccdn-keyvault-reader"])
             .AddKeyVault("mccdndeploytest", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-prodsecrets-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("cert-holder-del-2020-07", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdnarm-provider-prod01", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdnintkveast2", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-prodv2-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
-            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+//            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["mccdn-keyvault-reader"])
             .AddKeyVault("mccdncoreconfig", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdn-vscode", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-nuget", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
@@ -397,7 +416,7 @@ namespace ReadKeyvault
             //for CDN cert
             string clientId = "e5853e7a-fb1d-439d-ac66-ca22b1054fc4";
             string certThumbprint = "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6";
-            KeyVaultAccess kv = new KeyVaultAccess(kvUrl, clientId, certThumbprint);
+            KeyVaultAccess kv = new KeyVaultAccess(kvUrl, clientId, certThumbprint, false, null);
 
             string clientToCDN_KeyVersion = kv.GetSecret("ClientToCDNAuthKeyVersion");
             string clientToCDN_Key = kv.GetSecret("ClientToCDNAuthKey");
@@ -418,9 +437,15 @@ namespace ReadKeyvault
 
     public static class MyExtension
     {
-        public static Dictionary<string, AADSettingInfo> AddAADSettingInfo(this Dictionary<string, AADSettingInfo> dict, string aadName, string clientId, string certThumbrpint)
+        public static Dictionary<string, AADSettingInfo> AddAADSettingInfo(
+            this Dictionary<string, AADSettingInfo> dict,
+            string aadName,
+            string clientId,
+            string certThumbrpint,
+            bool useSecret = false,
+            Func<string> secretRetriever = null)
         {
-            var info = GenerateAADSettingInfo(aadName, clientId, certThumbrpint);
+            var info = GenerateAADSettingInfo(aadName, clientId, certThumbrpint, useSecret, secretRetriever);
             dict.Add(info.Key, info.Value);
             return dict;
         }
@@ -443,7 +468,11 @@ namespace ReadKeyvault
                 });
         }
 
-        private static KeyValuePair<string, AADSettingInfo> GenerateAADSettingInfo(string aadName, string clientId, string certThumbprint)
+        private static KeyValuePair<string, AADSettingInfo> GenerateAADSettingInfo(
+            string aadName,
+            string clientId,
+            string certThumbprint,
+            bool useSecret, Func<string> secretRetriever)
         {
             return new KeyValuePair<string, AADSettingInfo>(
                 aadName,
@@ -452,6 +481,8 @@ namespace ReadKeyvault
                     Name = aadName,
                     ClientId = clientId,
                     CertificateThumbprint = certThumbprint,
+                    UseSecret = useSecret,
+                    SecretRetriever = secretRetriever,
                 });
         }
 

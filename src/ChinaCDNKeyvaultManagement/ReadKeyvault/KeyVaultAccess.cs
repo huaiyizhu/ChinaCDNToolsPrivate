@@ -33,27 +33,27 @@ namespace ReadKeyvault
         private bool disposed = false;
 
         private string keyvaultUrl;
-        private string aadClientId;
-        private string aadAccessCertThumbprint;
 
         public KeyVaultAccess(
         string keyvaultUrl,
         string clientId,
-        string certThumbprint)
+        string certThumbprint,
+        bool useSecret,
+        Func<string> secret)
         {
-            this.Init(keyvaultUrl, clientId, certThumbprint);
+            this.Init(keyvaultUrl, clientId, certThumbprint, useSecret, secret);
         }
 
         public KeyVaultAccess(
             string keyvaultUrl,
             AADSettingInfo aadInfo)
         {
-            this.Init(keyvaultUrl, aadInfo.ClientId, aadInfo.CertificateThumbprint);
+            this.Init(keyvaultUrl, aadInfo.ClientId, aadInfo.CertificateThumbprint, aadInfo.UseSecret, aadInfo.SecretRetriever);
         }
 
         public KeyVaultAccess(KeyVaultSettingInfo kvInfo)
+            : this(kvInfo.Url, kvInfo.AADInfo)
         {
-            this.Init(kvInfo.Url, kvInfo.AADInfo.ClientId, kvInfo.AADInfo.CertificateThumbprint);
         }
 
         /// <summary>
@@ -455,6 +455,22 @@ namespace ReadKeyvault
             return result.AccessToken;
         }
 
+        private static async Task<string> GetAccessTokenWithSecret(string authority, string resource, string scope, string clientId, string secret)
+        {
+            AuthenticationContext context = new AuthenticationContext(authority, TokenCache.DefaultShared);
+            AuthenticationResult result = await context.AcquireTokenAsync(resource, new ClientCredential(clientId, secret)).ConfigureAwait(false);
+            return result.AccessToken;
+        }
+
+        private KeyVaultClient InitWithSecret(string valutaddr, string authClientId, string secret)
+        {
+            KeyVaultClient client = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(
+                (authority, resource, scope)
+                    => GetAccessTokenWithSecret(authority, resource, scope, authClientId, secret)));
+
+            return client;
+        }
+
         private KeyVaultClient InitWithCert(string vaultaddr, string authClientId, string authThumbprint)
         {
             X509Certificate2 cert = this.FindCertificateByThumbprint(authThumbprint);
@@ -482,16 +498,24 @@ namespace ReadKeyvault
             return CertUtils.GetCertificateByThumbprint(thumbprint, StoreName.My, StoreLocation.LocalMachine);
         }
 
-        private void Init(string keyvaultUrl, string aadClientId, string aadAccessCertThumbprint)
+        private void Init(string keyvaultUrl, string aadClientId, string aadAccessCertThumbprint, bool useSecret, Func<string> secretRetriever)
         {
             this.keyvaultUrl = keyvaultUrl;
-            this.aadClientId = aadClientId;
-            this.aadAccessCertThumbprint = aadAccessCertThumbprint;
 
-            this.keyVaultClient = this.InitWithCert(
-                                        this.keyvaultUrl,
-                                        this.aadClientId,
-                                        this.aadAccessCertThumbprint);
+            if (useSecret)
+            {
+                this.keyVaultClient = this.InitWithSecret(
+                                            this.keyvaultUrl,
+                                            aadClientId,
+                                            secretRetriever());
+            }
+            else
+            {
+                this.keyVaultClient = this.InitWithCert(
+                                            this.keyvaultUrl,
+                                            aadClientId,
+                                            aadAccessCertThumbprint);
+            }
         }
     }
 
