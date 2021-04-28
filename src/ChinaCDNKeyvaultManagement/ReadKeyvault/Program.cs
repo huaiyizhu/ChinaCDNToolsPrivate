@@ -49,7 +49,7 @@ namespace ReadKeyvault
 
                 KeyVaultSettingInfo srcKvInfo = PrepareSrcKeyVaultInfo();
                 KeyVaultSettingInfo dstKvInfo = PrepareDstKeyVaultInfo();
-                bool overwriteExisting = true;
+                bool overwriteExisting = false;
                 string[] ccsProdCertNames =
                 {
                     //"cdnrestapiclientprodv2-cdn-azure-cn"
@@ -64,8 +64,10 @@ namespace ReadKeyvault
                     //"nugetdev-cdn-azure-cn",
 
                     //"wildcard-gallerycdn-azure-cn",
+                    //"wildcard-staging-cdn-azure-cn",
 
-                    //"cdnrestapiclientprodv2-cdn-azure-cn",
+                    "cdnrestapiclientprodv2-cdn-azure-cn",
+                    "cdnrestapiclientprod-cdn-azure-cn",
 
                     //"cdpx-acr-appid",
                     //"cdpx-acr-key",
@@ -73,6 +75,13 @@ namespace ReadKeyvault
                     //"config-keyvault-access-cdn-azure-cn",
                     //"log-cdn-azure-cn",
                     //"mccdn-encrypt-cdn-azure-cn"
+                    //"grafana-cdn-azure-cn"
+                    //"kibana-cdn-azure-cn"
+
+                    //"imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
+                    //"portal-cdn-azure-cn",
+                    //"restapi-cdn-azure-cn",
+                    //"dashboard-cdn-azure-cn"
                     
 
                     //"imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
@@ -120,7 +129,7 @@ namespace ReadKeyvault
 
                 //CopySecrets(srcKvInfo, dstKvInfo, x => x.Identifier.Name.StartsWith("cdn-arm-prod-"), overwriteExisting);
 
-                ListCertificates(srcKvInfo);
+                ListCertificates(srcKvInfo, x => ccsProdCertNames.Contains(x.Identifier.Name));
                 //ListSecrets(srcKvInfo, x => ccsProdCertNames.Contains(x.Identifier.Name));
 
                 //CopySecrets(srcKvInfo, dstKvInfo, x => x.Identifier.Name.StartsWith("ARMService"), overwriteExisting);
@@ -250,13 +259,16 @@ namespace ReadKeyvault
             }
         }
 
-        private static void ListCertificates(KeyVaultSettingInfo kvInfo)
+        private static void ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateItem> isMatched)
         {
             Console.WriteLine("List Certificates for key vault {0}...", kvInfo);
 
             KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
-            var certs = kv.GetAllCertificates().Result;
-            Console.WriteLine($"Total Certificates: {certs.Count}");
+            var allCertificates = kv.GetAllCertificates().Result;
+            List<CertificateItem> certs = allCertificates.Where(x => isMatched(x)).ToList();
+
+            Console.WriteLine($"Total Certificates: {allCertificates.Count}");
+            Console.WriteLine($"Matched Certificates: {certs.Count}");
             foreach (var cert in certs)
             {
                 string thumbprint = BitConverter.ToString(cert.X509Thumbprint).Replace("-", "");
@@ -353,18 +365,20 @@ namespace ReadKeyvault
 
         private static KeyVaultSettingInfo PrepareDstKeyVaultInfo()
         {
-            return PredefinedKeyVaults["mccdn-prodsecrets-holder"];
+            //return PredefinedKeyVaults["mccdn-prodsecrets-holder"];
             //return PredefinedKeyVaults["mccdnintkvn2"];
             //return PredefinedKeyVaults["mccdncoreconfig"];
-            //return PredefinedKeyVaults["mccdnkeyvault"];
+            return PredefinedKeyVaults["mccdnkeyvault"];
+            //return PredefinedKeyVaults["mccdn-prodv2-holder"];
         }
 
         private static KeyVaultSettingInfo PrepareSrcKeyVaultInfo()
         {
-            //return PredefinedKeyVaults["mccdndeployprodv2-cme"];
-            return PredefinedKeyVaults["mccdndeployprod-cme"];
+            return PredefinedKeyVaults["mccdndeployprodv2-cme"];
+            //return PredefinedKeyVaults["mccdndeployprod-cme"];
             //return PredefinedKeyVaults["mccdn-prodsecrets-holder"];
             //return PredefinedKeyVaults["mccdnkeyvault"];
+            //return PredefinedKeyVaults["mccdndeploytest-cme"];
         }
 
         private static readonly Dictionary<string, AADSettingInfo> PredefinedAADInfo = new Dictionary<string, AADSettingInfo>()
