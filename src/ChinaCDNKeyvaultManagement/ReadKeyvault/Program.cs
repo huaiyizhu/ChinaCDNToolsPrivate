@@ -18,6 +18,8 @@ namespace ReadKeyvault
         public string ClientId { get; set; }
         public string CertificateThumbprint { get; set; }
 
+        public string CertificateName { get; set; }
+
         public bool UseSecret { get; set; }
 
         public Func<string> SecretRetriever { get; set; }
@@ -49,7 +51,7 @@ namespace ReadKeyvault
 
                 KeyVaultSettingInfo srcKvInfo = PrepareSrcKeyVaultInfo();
                 KeyVaultSettingInfo dstKvInfo = PrepareDstKeyVaultInfo();
-                bool overwriteExisting = false;
+                bool overwriteExisting = true;
                 string[] ccsProdCertNames =
                 {
                     //"cdnrestapiclientprodv2-cdn-azure-cn"
@@ -65,9 +67,10 @@ namespace ReadKeyvault
 
                     //"wildcard-gallerycdn-azure-cn",
                     //"wildcard-staging-cdn-azure-cn",
+                    //"wildcard-dev-cdn-azure-cn",
 
-                    "cdnrestapiclientprodv2-cdn-azure-cn",
-                    "cdnrestapiclientprod-cdn-azure-cn",
+                    //"cdnrestapiclientprodv2-cdn-azure-cn",
+                    //"cdnrestapiclientprod-cdn-azure-cn",
 
                     //"cdpx-acr-appid",
                     //"cdpx-acr-key",
@@ -77,6 +80,7 @@ namespace ReadKeyvault
                     //"mccdn-encrypt-cdn-azure-cn"
                     //"grafana-cdn-azure-cn"
                     //"kibana-cdn-azure-cn"
+                    //"gcs-geneva-keyvault-azurechinacdn-client"
 
                     //"imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
                     //"portal-cdn-azure-cn",
@@ -84,12 +88,16 @@ namespace ReadKeyvault
                     //"dashboard-cdn-azure-cn"
                     
 
-                    //"imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
+                    "imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
                     //"gcs-geneva-keyvault-azurechinacdn-client"
                     //"icm-access-azurechinacdn-client"
 
+                    //"manifest-deploy-ev2-chinacdn-azclient-ms"
+
                     //"SMTPBackupAccountPassword",
                     //"SMTPPrimaryAccountPassword",
+
+                    //"wildcard-localdev-cdn-azure-cn"
 
                     //"CertificateRepositoryKeyVaultClientSecret",
 
@@ -98,12 +106,12 @@ namespace ReadKeyvault
             };
 
 
-                //CopyCertificates(
-                //    srcKvInfo,
-                //    dstKvInfo,
-                //    x => ccsProdCertNames.Contains(x.Identifier.Name),
-                //    //x => true,
-                //    overwriteExisting);
+                CopyCertificates(
+                    srcKvInfo,
+                    dstKvInfo,
+                    x => ccsProdCertNames.Contains(x.Identifier.Name),
+                    //x => true,
+                    overwriteExisting);
 
                 //KeyVaultAccess kvAccess = new KeyVaultAccess(srcKvInfo.Url, srcKvInfo.ClientId, srcKvInfo.CertificateThumbprint);
                 //var result = kvAccess.DownloadSecretsAndCerts(x => true).Result;
@@ -129,8 +137,33 @@ namespace ReadKeyvault
 
                 //CopySecrets(srcKvInfo, dstKvInfo, x => x.Identifier.Name.StartsWith("cdn-arm-prod-"), overwriteExisting);
 
-                ListCertificates(srcKvInfo, x => ccsProdCertNames.Contains(x.Identifier.Name));
+                //ListCertificates(srcKvInfo, x => ccsProdCertNames.Contains(x.Identifier.Name));
                 //ListSecrets(srcKvInfo, x => ccsProdCertNames.Contains(x.Identifier.Name));
+
+
+                //==============================
+
+                //ListAllCertificateOfKeyVaults();
+                //DeleteCertificatesFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\cert-delete-list1.csv");
+                //DeleteCertificatesFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\cert-delete-list2.txt");
+                //DeleteCertificatesFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\cert-delete-list3.txt");
+
+                //DeleteSecretsFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-delete-list1.txt");
+                //DeleteSecretsFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-delete-list2.txt");
+                //DeleteSecretsFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-delete-list3.txt");
+                //DeleteSecretsFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-delete-list4.txt");
+
+                //UpdateSecretsExpiredDateFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-update-expire-date-test-code1.csv");
+                //UpdateSecretsExpiredDateFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-update-expire-date-list1.csv");
+                //UpdateSecretsExpiredDateFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-update-expire-date-list2.csv");
+                //UpdateSecretsExpiredDateFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-update-expire-date-list3.csv");
+                //UpdateSecretsExpiredDateFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-update-expire-date-list4.csv");
+                //UpdateSecretsExpiredDateFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-update-expire-date-list5.csv");
+                //UpdateSecretsExpiredDateFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\secret-update-expire-date-list6.csv");
+
+
+                //=============================
+
 
                 //CopySecrets(srcKvInfo, dstKvInfo, x => x.Identifier.Name.StartsWith("ARMService"), overwriteExisting);
                 //CopySecrets(srcKvInfo, dstKvInfo, x => true, overwriteExisting);
@@ -184,10 +217,148 @@ namespace ReadKeyvault
             }
         }
 
+        private static void UpdateSecretsExpiredDateFromFile(string file)
+        {
+            string[] lines = File.ReadAllLines(file);
+            var secretToUpdate = lines.Select(x =>
+            {
+                var items = x.Split(new char[] { '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                string item = items[0].Trim();
+                string date = items[1].Trim();
+                DateTime expiredDate = DateTime.Parse(date);
+                return new
+                {
+                    ItemName = item.Substring(item.LastIndexOf('/') + 1),
+                    KeyVaultPath = item,
+                    KeyVault = item.Substring("https://".Length, item.IndexOf(".vault.azure.cn/") - "https://".Length),
+                    ExpiredDate = expiredDate,
+                };
+            }).ToList();
+
+            var groupedByKeyVault = secretToUpdate.GroupBy(x => x.KeyVault).ToList();
+
+            foreach (var keyvault in groupedByKeyVault)
+            {
+                Console.WriteLine("[Begin] Updating secrets' expiration date in keyvault {0}, total secrets {1}...", keyvault.Key, keyvault.Count());
+                KeyVaultSettingInfo kvInfo = GetPredefinedKeyVaults(keyvault.Key);
+                KeyVaultAccess kvAccess = new KeyVaultAccess(kvInfo);
+                foreach (var secret in keyvault)
+                {
+                    kvAccess.UpdateSecretExpirationDate(secret.ItemName, secret.ExpiredDate).Wait();
+                }
+
+                Console.WriteLine("[End] Completed update secrets' expiration date in keyvault {0}, total secrets {1}...", keyvault.Key, keyvault.Count());
+                Console.WriteLine();
+            }
+        }
+
+        private static void DeleteSecretsFromFile(string file)
+        {
+            string[] lines = File.ReadAllLines(file);
+            var certsToDelete = lines.Select(item =>
+            {
+                item = item.Trim();
+                return new
+                {
+                    ItemName = item.Substring(item.LastIndexOf('/') + 1),
+                    KeyVaultPath = item,
+                    KeyVault = item.Substring("https://".Length, item.IndexOf(".vault.azure.cn/") - "https://".Length),
+                };
+            }).ToList();
+
+            var groupedByKeyVault = certsToDelete.GroupBy(x => x.KeyVault).ToList();
+
+            foreach (var keyvault in groupedByKeyVault)
+            {
+                Console.WriteLine("[Begin] Deleting secrets in keyvault {0}, total secrets {1}...", keyvault.Key, keyvault.Count());
+                KeyVaultSettingInfo kvInfo = GetPredefinedKeyVaults(keyvault.Key);
+                KeyVaultAccess kvAccess = new KeyVaultAccess(kvInfo);
+                foreach (var secretToDelete in keyvault)
+                {
+                    kvAccess.DeleteSecret(secretToDelete.ItemName).Wait();
+                }
+
+                Console.WriteLine("[End] Completed delete secret in keyvault {0}, total secrets {1}...", keyvault.Key, keyvault.Count());
+                Console.WriteLine();
+            }
+        }
+
+        private static void DeleteCertificatesFromFile(string file)
+        {
+            string[] lines = File.ReadAllLines(file);
+            var certsToDelete = lines.Select(item =>
+            {
+                item = item.Trim();
+                return new
+                {
+                    ItemName = item.Substring(item.LastIndexOf('/') + 1),
+                    KeyVaultPath = item,
+                    KeyVault = item.Substring("https://".Length, item.IndexOf(".vault.azure.cn/") - "https://".Length),
+                };
+            }).ToList();
+
+            var groupedByKeyVault = certsToDelete.GroupBy(x => x.KeyVault).ToList();
+
+            foreach (var keyvault in groupedByKeyVault)
+            {
+                Console.WriteLine("[Begin] Deleting certificate in keyvault {0}, total certificates {1}...", keyvault.Key, keyvault.Count());
+                KeyVaultSettingInfo kvInfo = GetPredefinedKeyVaults(keyvault.Key);
+                KeyVaultAccess kvAccess = new KeyVaultAccess(kvInfo);
+                foreach (var certToDelete in keyvault)
+                {
+                    kvAccess.DeleteCertificate(certToDelete.ItemName).Wait();
+                }
+
+                Console.WriteLine("[End] Completed delete certificate in keyvault {0}, total certificates {1}...", keyvault.Key, keyvault.Count());
+                Console.WriteLine();
+            }
+        }
+
+        private static void ListAllCertificateOfKeyVaults()
+        {
+            KeyVaultSettingInfo[] kvInfos = new KeyVaultSettingInfo[]
+            {
+                            GetPredefinedKeyVaults("mccdn-prodsecrets-holder"),
+                            GetPredefinedKeyVaults("mccdnintkvn2"),
+                            //GetPredefinedKeyVaults("mccdncoreconfig"),
+                            GetPredefinedKeyVaults("mccdnkeyvault"),
+                            GetPredefinedKeyVaults("mccdn-prodv2-holder"),
+                            GetPredefinedKeyVaults("mccdndeployprodv2-cme"),
+                            GetPredefinedKeyVaults("mccdndeployprod-cme"),
+            };
+
+            ////ListCertificates(kvInfo, x => true);
+            //                using (StreamWriter sw = new StreamWriter("d:\\temp\\expiringcert.txt"))
+            {
+                //List<CertificateItem> certList = new List<CertificateItem>();
+                foreach (var kvInfo in kvInfos)
+                {
+                    var certs = ListCertificates(
+                        kvInfo,
+                        //x => x.Attributes.Expires < DateTime.Now.AddDays(90));
+                        x => true,
+                        cert => Console.WriteLine($"{cert.Id}"));
+
+                    Console.WriteLine();
+                    Console.WriteLine();
+                    //  certList.AddRange(certs);
+                }
+
+
+                //                    var orderedCerts = certList.OrderBy(cert => cert.Identifier.Name).ToList();
+
+                //foreach (var cert in orderedCerts)
+                //{
+                //    Console.WriteLine($"{cert.Identifier.Name}\t{cert.Id}\t{cert.Attributes.Expires.Value.ToString("o")}");
+                //    sw.WriteLine($"{cert.Identifier.Name}\t{cert.Id}\t{cert.Attributes.Expires.Value.ToString("o")}");
+                //}
+            }
+        }
+
         private static void BackupCustomerCertificates()
         {
 
-            KeyVaultSettingInfo srcKvInfo = PredefinedKeyVaults["mccdnprod"];
+            KeyVaultSettingInfo srcKvInfo = GetPredefinedKeyVaults("mccdnprod");
 
             KeyVaultSettingInfo dstKvInfo = new KeyVaultSettingInfo
             {
@@ -259,21 +430,39 @@ namespace ReadKeyvault
             }
         }
 
-        private static void ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateItem> isMatched)
+        private static List<CertificateItem> ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateItem> isMatched)
         {
             Console.WriteLine("List Certificates for key vault {0}...", kvInfo);
 
             KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
             var allCertificates = kv.GetAllCertificates().Result;
             List<CertificateItem> certs = allCertificates.Where(x => isMatched(x)).ToList();
+            return certs;
+        }
 
+        private static List<CertificateItem> ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateItem> isMatched, Action<CertificateItem> outputAction = null)
+        {
+            Console.WriteLine("List Certificates for key vault {0}...", kvInfo);
+
+            KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
+            var allCertificates = kv.GetAllCertificates().Result;
+            List<CertificateItem> certs = allCertificates.Where(x => isMatched(x)).ToList();
             Console.WriteLine($"Total Certificates: {allCertificates.Count}");
             Console.WriteLine($"Matched Certificates: {certs.Count}");
             foreach (var cert in certs)
             {
-                string thumbprint = BitConverter.ToString(cert.X509Thumbprint).Replace("-", "");
-                Console.WriteLine($"Name: {cert.Id}, Thumbprint: {thumbprint}， NotBefore: {cert.Attributes.NotBefore}, Expires: {cert.Attributes.Expires}");
+                if (outputAction != null)
+                {
+                    outputAction(cert);
+                }
+                else
+                {
+                    string thumbprint = BitConverter.ToString(cert.X509Thumbprint).Replace("-", "");
+                    Console.WriteLine($"Name: {cert.Id}, Thumbprint: {thumbprint}， NotBefore: {cert.Attributes.NotBefore}, Expires: {cert.Attributes.Expires}");
+                }
             }
+
+            return certs;
         }
 
         private static void CopySecrets(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, Predicate<SecretItem> isMatched, bool overwriteExisting = false)
@@ -356,7 +545,7 @@ namespace ReadKeyvault
 
         private static string KeyvaultReaderSecretRetriever()
         {
-            var kvInfo = PredefinedKeyVaults["mccdn-prodsecrets-holder"];
+            var kvInfo = GetPredefinedKeyVaults("mccdn-prodsecrets-holder");
 
             KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
             var secret = kv.GetSecret("CertificateRepositoryKeyVaultClientSecret");
@@ -365,31 +554,31 @@ namespace ReadKeyvault
 
         private static KeyVaultSettingInfo PrepareDstKeyVaultInfo()
         {
-            //return PredefinedKeyVaults["mccdn-prodsecrets-holder"];
-            //return PredefinedKeyVaults["mccdnintkvn2"];
-            //return PredefinedKeyVaults["mccdncoreconfig"];
-            return PredefinedKeyVaults["mccdnkeyvault"];
-            //return PredefinedKeyVaults["mccdn-prodv2-holder"];
+            return GetPredefinedKeyVaults("mccdn-prodsecrets-holder");
+            //return GetPredefinedKeyVaults("mccdnintkvn2");
+            //return GetPredefinedKeyVaults("mccdncoreconfig");
+            //return GetPredefinedKeyVaults("mccdnkeyvault");
+            //return GetPredefinedKeyVaults("mccdn-prodv2-holder");
         }
 
         private static KeyVaultSettingInfo PrepareSrcKeyVaultInfo()
         {
-            return PredefinedKeyVaults["mccdndeployprodv2-cme"];
-            //return PredefinedKeyVaults["mccdndeployprod-cme"];
-            //return PredefinedKeyVaults["mccdn-prodsecrets-holder"];
-            //return PredefinedKeyVaults["mccdnkeyvault"];
-            //return PredefinedKeyVaults["mccdndeploytest-cme"];
+            return GetPredefinedKeyVaults("mccdndeployprodv2-cme");
+            //return GetPredefinedKeyVaults("mccdndeployprod-cme");
+            //return GetPredefinedKeyVaults("mccdn-prodsecrets-holder");
+            //return GetPredefinedKeyVaults("mccdnkeyvault");
+            //return GetPredefinedKeyVaults("mccdndeploytest-cme");
         }
 
         private static readonly Dictionary<string, AADSettingInfo> PredefinedAADInfo = new Dictionary<string, AADSettingInfo>()
-            .AddAADSettingInfo("KeyVaultMcCdnDeployProdCMEByCertApp3", "acd70671-bc7d-450d-8cc3-02c1f98d0561", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
+            .AddAADSettingInfo("KeyVaultMcCdnDeployProdCMEByCertApp3", "acd70671-bc7d-450d-8cc3-02c1f98d0561", "E72D40CC10B7B3560B61D33C32E19D38E5E9ECED", "config.keyvault.access.cdn.azure.cn")
             .AddAADSettingInfo("KeyVaultMcCdnDeployTestByCertApp", "e5853e7a-fb1d-439d-ac66-ca22b1054fc4", "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
-            .AddAADSettingInfo("KeyVaultMcCdnDeployProdCMEByCertApp2", "5c83117e-eb3b-40c2-9afc-545893059b36", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
-            .AddAADSettingInfo("KeyVaultMcCdnDeployProdByCertApp2", "000be46d-6e2e-4ab9-b6f4-996e4d1e834d", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
+            .AddAADSettingInfo("KeyVaultMcCdnDeployProdCMEByCertApp2", "5c83117e-eb3b-40c2-9afc-545893059b36", "E72D40CC10B7B3560B61D33C32E19D38E5E9ECED", "config.keyvault.access.cdn.azure.cn")
+            .AddAADSettingInfo("KeyVaultMcCdnDeployProdByCertApp2", "000be46d-6e2e-4ab9-b6f4-996e4d1e834d", "E72D40CC10B7B3560B61D33C32E19D38E5E9ECED", "config.keyvault.access.cdn.azure.cn")
             .AddAADSettingInfo("KeyVaultMcCCSDeployProdCMEByCertApp3", "9a1a38f5-a221-4d21-9f3b-7655665f33fa", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
-            .AddAADSettingInfo("mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, true, KeyvaultReaderSecretRetriever);
+            .AddAADSettingInfo("mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, null, true, KeyvaultReaderSecretRetriever);
 
-        private static readonly Dictionary<string, KeyVaultSettingInfo> PredefinedKeyVaults = new Dictionary<string, KeyVaultSettingInfo>()
+        private static readonly Dictionary<string, KeyVaultSettingInfo> predefinedKeyVaults = new Dictionary<string, KeyVaultSettingInfo>()
             .AddKeyVault("mccdnintkvn2", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("test001", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("cdnbillingkvprod", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp2"])
@@ -414,6 +603,16 @@ namespace ReadKeyvault
             .AddKeyVault("mccdn-nuget", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-gallery", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdndeployprod", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"]);
+
+        private static KeyVaultSettingInfo GetPredefinedKeyVaults(string kvName)
+        {
+            if (predefinedKeyVaults.ContainsKey(kvName))
+            {
+                return predefinedKeyVaults[kvName];
+            }
+
+            throw new KeyNotFoundException($"KeyVaultSettingInfo not found with key vault name {kvName}");
+        }
 
     private static void ReadTestSecret()
         {
@@ -456,10 +655,11 @@ namespace ReadKeyvault
             string aadName,
             string clientId,
             string certThumbrpint,
+            string certName = null,
             bool useSecret = false,
             Func<string> secretRetriever = null)
         {
-            var info = GenerateAADSettingInfo(aadName, clientId, certThumbrpint, useSecret, secretRetriever);
+            var info = GenerateAADSettingInfo(aadName, clientId, certThumbrpint, certName, useSecret, secretRetriever);
             dict.Add(info.Key, info.Value);
             return dict;
         }
@@ -486,6 +686,7 @@ namespace ReadKeyvault
             string aadName,
             string clientId,
             string certThumbprint,
+            string certName,
             bool useSecret, Func<string> secretRetriever)
         {
             return new KeyValuePair<string, AADSettingInfo>(
@@ -495,6 +696,7 @@ namespace ReadKeyvault
                     Name = aadName,
                     ClientId = clientId,
                     CertificateThumbprint = certThumbprint,
+                    CertificateName = certName,
                     UseSecret = useSecret,
                     SecretRetriever = secretRetriever,
                 });

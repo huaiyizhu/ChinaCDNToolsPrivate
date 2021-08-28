@@ -140,6 +140,33 @@ namespace ReadKeyvault
             }
         }
 
+        internal async Task DeleteCertificate(string certName)
+        {
+            Console.Write("Deleting certificate {0} ...", certName);
+            await this.keyVaultClient.DeleteCertificateAsync(this.keyvaultUrl, certName).ConfigureAwait(false);
+            Console.WriteLine("Completed");
+        }
+
+        internal async Task UpdateSecretExpirationDate(string secretName, DateTime expireDate)
+        {
+            Console.Write("Updating secret {0}, expire date {1} ...", secretName, expireDate);
+            var secret = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secretName).ConfigureAwait(false);
+            SecretAttributes attr = new SecretAttributes()
+            {
+                Expires = expireDate,
+            };
+
+            await this.keyVaultClient.UpdateSecretAsync(secret.Id, null, attr).ConfigureAwait(false);
+            Console.WriteLine("Completed");
+        }
+
+        internal async Task DeleteSecret(string secretName)
+        {
+            Console.Write("Deleting secret {0} ...", secretName);
+            await this.keyVaultClient.DeleteSecretAsync(this.keyvaultUrl, secretName).ConfigureAwait(false);
+            Console.WriteLine("Completed");
+        }
+
         internal async Task DeleteAllCertificates(Predicate<CertificateItem> isMathced)
         {
             List<CertificateItem> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
