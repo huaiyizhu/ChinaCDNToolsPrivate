@@ -25,6 +25,11 @@ namespace ReadKeyvault
         public DateTime? NotBefore { get; set; }
 
         public DateTime? Expires { get; set; }
+
+        public override string ToString()
+        {
+            return $"Name: {Name}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+        }
     }
 
     public class KeyVaultAccess : IDisposable
@@ -76,21 +81,25 @@ namespace ReadKeyvault
             GC.SuppressFinalize(this);
         }
 
-        /// <summary>
-        /// Reads the secret.
-        /// </summary>
-        /// <param name="name">The name.</param>
-        /// <returns>
-        /// Secret value
-        /// </returns>
-        public string GetSecret(string name)
+        public SecretInfo GetSecretItem(string name)
         {
             try
             {
                 var bundle = this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name)
                                  .ConfigureAwait(false)
                                  .GetAwaiter().GetResult();
-                return bundle.Value;
+
+                SecretInfo info = new SecretInfo
+                {
+                    ContentType = bundle.ContentType,
+                    Name = bundle.SecretIdentifier.Name,
+                    Expires = bundle.Attributes.Expires,
+                    NotBefore = bundle.Attributes.NotBefore,
+                    Value = bundle.Value,
+                    Tags = bundle.Tags != null ? new Dictionary<string, string>(bundle.Tags) : new Dictionary<string, string>(),
+                };
+
+                return info;
             }
             catch (AdalServiceException)
             {
@@ -108,6 +117,19 @@ namespace ReadKeyvault
 
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Reads the secret.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <returns>
+        /// Secret value
+        /// </returns>
+        public string GetSecret(string name)
+        {
+            var item = GetSecretItem(name);
+            return item.Value;
         }
 
         internal async Task DeleteAllSecrets(Predicate<SecretItem> isMathced)

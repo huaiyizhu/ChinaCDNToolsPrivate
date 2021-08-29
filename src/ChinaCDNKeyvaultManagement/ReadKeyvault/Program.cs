@@ -7,6 +7,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using CommandLine;
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.SqlServer.Server;
 
@@ -47,71 +48,74 @@ namespace ReadKeyvault
             {
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-                //ReadTestSecret();
+                CommandLine.Parser.Default.ParseArguments<CommandOptions>(args)
+                           .WithParsed(ProcessCommandLines);
 
-                KeyVaultSettingInfo srcKvInfo = PrepareSrcKeyVaultInfo();
-                KeyVaultSettingInfo dstKvInfo = PrepareDstKeyVaultInfo();
-                bool overwriteExisting = true;
-                string[] ccsProdCertNames =
-                {
-                    //"cdnrestapiclientprodv2-cdn-azure-cn"
-                    //"cdnrestapiclientprod-cdn-azure-cn"
-                    //"clientauth-azurechinacdn-client"
-                    //"cdnrestapiclientprod-cdn-azure-cn"
+            //    //ReadTestSecret();
 
-                    //"vscode-cdn-azure-cn",
-                    //"vsassetscdn-azure-cn",
+            //    KeyVaultSettingInfo srcKvInfo = PrepareSrcKeyVaultInfo();
+            //    KeyVaultSettingInfo dstKvInfo = PrepareDstKeyVaultInfo();
+            //    bool overwriteExisting = true;
+            //    string[] ccsProdCertNames =
+            //    {
+            //        //"cdnrestapiclientprodv2-cdn-azure-cn"
+            //        //"cdnrestapiclientprod-cdn-azure-cn"
+            //        //"clientauth-azurechinacdn-client"
+            //        //"cdnrestapiclientprod-cdn-azure-cn"
 
-                    //"nuget-cdn-azure-cn",
-                    //"nugetdev-cdn-azure-cn",
+            //        //"vscode-cdn-azure-cn",
+            //        //"vsassetscdn-azure-cn",
 
-                    //"wildcard-gallerycdn-azure-cn",
-                    //"wildcard-staging-cdn-azure-cn",
-                    //"wildcard-dev-cdn-azure-cn",
+            //        //"nuget-cdn-azure-cn",
+            //        //"nugetdev-cdn-azure-cn",
 
-                    //"cdnrestapiclientprodv2-cdn-azure-cn",
-                    //"cdnrestapiclientprod-cdn-azure-cn",
+            //        //"wildcard-gallerycdn-azure-cn",
+            //        //"wildcard-staging-cdn-azure-cn",
+            //        //"wildcard-dev-cdn-azure-cn",
 
-                    //"cdpx-acr-appid",
-                    //"cdpx-acr-key",
+            //        //"cdnrestapiclientprodv2-cdn-azure-cn",
+            //        //"cdnrestapiclientprod-cdn-azure-cn",
 
-                    //"config-keyvault-access-cdn-azure-cn",
-                    //"log-cdn-azure-cn",
-                    //"mccdn-encrypt-cdn-azure-cn"
-                    //"grafana-cdn-azure-cn"
-                    //"kibana-cdn-azure-cn"
-                    //"gcs-geneva-keyvault-azurechinacdn-client"
+            //        //"cdpx-acr-appid",
+            //        //"cdpx-acr-key",
 
-                    //"imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
-                    //"portal-cdn-azure-cn",
-                    //"restapi-cdn-azure-cn",
-                    //"dashboard-cdn-azure-cn"
+            //        //"config-keyvault-access-cdn-azure-cn",
+            //        //"log-cdn-azure-cn",
+            //        //"mccdn-encrypt-cdn-azure-cn"
+            //        //"grafana-cdn-azure-cn"
+            //        //"kibana-cdn-azure-cn"
+            //        //"gcs-geneva-keyvault-azurechinacdn-client"
+
+            //        //"imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
+            //        //"portal-cdn-azure-cn",
+            //        //"restapi-cdn-azure-cn",
+            //        //"dashboard-cdn-azure-cn"
                     
 
-                    "imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
-                    //"gcs-geneva-keyvault-azurechinacdn-client"
-                    //"icm-access-azurechinacdn-client"
+            //        "imageprocess-e186d041-82b1-4221-acf6-5631a423def6-cdn-azure-cn",
+            //        //"gcs-geneva-keyvault-azurechinacdn-client"
+            //        //"icm-access-azurechinacdn-client"
 
-                    //"manifest-deploy-ev2-chinacdn-azclient-ms"
+            //        //"manifest-deploy-ev2-chinacdn-azclient-ms"
 
-                    //"SMTPBackupAccountPassword",
-                    //"SMTPPrimaryAccountPassword",
+            //        //"SMTPBackupAccountPassword",
+            //        //"SMTPPrimaryAccountPassword",
 
-                    //"wildcard-localdev-cdn-azure-cn"
+            //        //"wildcard-localdev-cdn-azure-cn"
 
-                    //"CertificateRepositoryKeyVaultClientSecret",
+            //        //"CertificateRepositoryKeyVaultClientSecret",
 
-                //"cdpx-acr-appid",
-                //"cdpx-acr-key",
-            };
+            //    //"cdpx-acr-appid",
+            //    //"cdpx-acr-key",
+            //};
 
 
-                CopyCertificates(
-                    srcKvInfo,
-                    dstKvInfo,
-                    x => ccsProdCertNames.Contains(x.Identifier.Name),
-                    //x => true,
-                    overwriteExisting);
+                //CopyCertificates(
+                //    srcKvInfo,
+                //    dstKvInfo,
+                //    x => ccsProdCertNames.Contains(x.Identifier.Name),
+                //    //x => true,
+                //    overwriteExisting);
 
                 //KeyVaultAccess kvAccess = new KeyVaultAccess(srcKvInfo.Url, srcKvInfo.ClientId, srcKvInfo.CertificateThumbprint);
                 //var result = kvAccess.DownloadSecretsAndCerts(x => true).Result;
@@ -214,6 +218,75 @@ namespace ReadKeyvault
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
+            }
+        }
+
+        private static void ProcessCommandLines(CommandOptions command)
+        {
+            try
+            {
+                switch (command.Operation)
+                {
+                    case OperationType.sync:
+                        ProcessSyncAction(command);
+                        break;
+                    case OperationType.get:
+                        ProcessGetAction(command);
+                        break;
+                    case OperationType.delete:
+                        throw new NotImplementedException();
+                    case OperationType.update:
+                        throw new NotImplementedException();
+                    default:
+                        throw new ArgumentException($"Unknown operation {command.Operation}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+        }
+
+        private static void ProcessSyncAction(CommandOptions command)
+        {
+            if (string.IsNullOrEmpty(command.DstKeyVault))
+            {
+                throw new ArgumentNullException("dstkv should be provided");
+            }
+
+            Console.WriteLine($"Begin to sync secret/certificate '{command.TargetName}' from source key vault '{command.SrcKeyVault}' to dest key vaule '{command.DstKeyVault}'. Override if exist: {command.OverrideIfExist}");
+
+            KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
+            KeyVaultSettingInfo dstKVInfo = GetPredefinedKeyVaults(command.DstKeyVault);
+
+            // TODO: verify sync certificate
+            CopySecretAsync(
+                srcKVInfo,
+                dstKVInfo,
+                command.TargetName,
+                command.OverrideIfExist).Wait();
+        }
+
+        private static void ProcessGetAction(CommandOptions command)
+        {
+            Console.WriteLine($"Begin to find secret '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+            KeyVaultSettingInfo srcKV = GetPredefinedKeyVaults(command.SrcKeyVault);
+            KeyVaultAccess kv = new KeyVaultAccess(srcKV);
+            if (command.Target == OperationTarget.certificate)
+            {
+                throw new NotImplementedException();
+            }
+            else
+            {
+                var secret = kv.GetSecretItem(command.TargetName);
+                if (secret == null)
+                {
+                    Console.WriteLine($"Cannot find secret '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+                }
+                else
+                {
+                    Console.WriteLine($"Secret is {secret}");
+                }
             }
         }
 
@@ -463,6 +536,19 @@ namespace ReadKeyvault
             }
 
             return certs;
+        }
+
+        private static async Task CopySecretAsync(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string secretName, bool overwriteExisting = false)
+        {
+            KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
+            var secretItem = srckv.GetSecretItem(secretName);
+            if (secretItem == null)
+            {
+                throw new ArgumentException($"Cannot get secret '{secretName}' in source key vault '{srcKvInfo.Url}'");
+            }
+
+            KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
+            await dstkv.ImportSecretsAndCerts(new SecretInfo[] { secretItem }.ToList(), overwriteExisting).ConfigureAwait(false);
         }
 
         private static void CopySecrets(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, Predicate<SecretItem> isMatched, bool overwriteExisting = false)
