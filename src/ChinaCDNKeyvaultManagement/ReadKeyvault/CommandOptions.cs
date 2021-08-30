@@ -59,5 +59,8 @@ namespace ReadKeyvault
 
         [Option("force", Required = false, HelpText = "True to force override existing key vault values")]
         public bool OverrideIfExist { get; set; }
+
+        [Option("expired", Required = false, HelpText = "The expired date to update secret")]
+        public DateTimeOffset? ExpiredDate { get; set; }
     }
 }

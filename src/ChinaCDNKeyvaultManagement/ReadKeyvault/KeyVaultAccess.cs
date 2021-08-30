@@ -326,13 +326,13 @@ namespace ReadKeyvault
             Console.WriteLine("Completed");
         }
 
-        internal async Task UpdateSecretExpirationDate(string secretName, DateTime expireDate)
+        internal async Task UpdateSecretExpirationDate(string secretName, DateTimeOffset expireDate)
         {
             Console.Write("Updating secret {0}, expire date {1} ...", secretName, expireDate);
             var secret = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secretName).ConfigureAwait(false);
             SecretAttributes attr = new SecretAttributes()
             {
-                Expires = expireDate,
+                Expires = expireDate.UtcDateTime,
             };
 
             await this.keyVaultClient.UpdateSecretAsync(secret.Id, null, attr).ConfigureAwait(false);

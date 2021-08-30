@@ -241,7 +241,8 @@ namespace ReadKeyvault
                         ProcessDeleteAction(command);
                         break;
                     case OperationType.update:
-                        throw new NotImplementedException();
+                        ProcessUpdateAction(command);
+                        break;
                     default:
                         throw new ArgumentException($"Unknown operation {command.Operation}");
                 }
@@ -250,6 +251,20 @@ namespace ReadKeyvault
             {
                 Console.WriteLine(ex);
             }
+        }
+
+        private static void ProcessUpdateAction(CommandOptions command)
+        {
+            Requires.Argument("name", command.TargetName).NotNullOrEmpty();
+            Requires.Argument("expired", command.ExpiredDate).NotNull();
+            Requires.Argument("target", command.Target).PassPredication(x => x == OperationTarget.secret, "only secret type is supported");
+
+            Console.WriteLine($"Begin to update for {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}', new expired date {command.ExpiredDate}...");
+
+            KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
+            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+
+            kv.UpdateSecretExpirationDate(command.TargetName, command.ExpiredDate.Value).Wait();
         }
 
         private static void ProcessDeleteAction(CommandOptions command)
