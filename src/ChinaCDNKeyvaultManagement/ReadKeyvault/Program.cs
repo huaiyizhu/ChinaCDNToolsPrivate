@@ -238,7 +238,8 @@ namespace ReadKeyvault
                         ProcessGetAction(command);
                         break;
                     case OperationType.delete:
-                        throw new NotImplementedException();
+                        ProcessDeleteAction(command);
+                        break;
                     case OperationType.update:
                         throw new NotImplementedException();
                     default:
@@ -251,9 +252,37 @@ namespace ReadKeyvault
             }
         }
 
+        private static void ProcessDeleteAction(CommandOptions command)
+        {
+            Requires.Argument("name", command.TargetName).NotNullOrEmpty();
+
+            Console.WriteLine($"Begin to delete {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}'...");
+            Console.WriteLine("Type 'yes' with enter to confim delete action...");
+
+            string confirmYes = Console.ReadLine();
+            if (!string.Equals(confirmYes, "yes", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Delete action not performed");
+                return;
+            }
+
+            Console.WriteLine($"Comfirmed to delete {command.Target} {command.TargetName} from source key vault {command.SrcKeyVault}");
+
+            KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
+            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+            if (command.Target == OperationTarget.certificate)
+            {
+                kv.DeleteCertificate(command.TargetName).Wait();
+            }
+            else
+            {
+                kv.DeleteSecret(command.TargetName).Wait();
+            }
+        }
+
         private static void ProcessListAction(CommandOptions command)
         {
-            Console.WriteLine($"Begin to list secret/certificate '{command.TargetName}' from source key vault '{command.SrcKeyVault}'...");
+            Console.WriteLine($"Begin to list {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}'...");
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
@@ -267,7 +296,7 @@ namespace ReadKeyvault
             }
             else
             {
-                var secrets = kv.GetAllSecrets().Result;
+                var secrets = kv.GetAllSecrets(includeCertificates: false).Result;
                 Console.WriteLine($"Total secrets: {secrets.Count}");
                 foreach (var secret in secrets)
                 {
@@ -281,7 +310,7 @@ namespace ReadKeyvault
             Requires.Argument("dstkv", command.DstKeyVault).NotNullOrEmpty();
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
 
-            Console.WriteLine($"Begin to sync secret/certificate '{command.TargetName}' from source key vault '{command.SrcKeyVault}' to dest key vaule '{command.DstKeyVault}'. Override if exist: {command.OverrideIfExist}");
+            Console.WriteLine($"Begin to sync {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}' to dest key vaule '{command.DstKeyVault}'. Override if exist: {command.OverrideIfExist}");
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultSettingInfo dstKVInfo = GetPredefinedKeyVaults(command.DstKeyVault);

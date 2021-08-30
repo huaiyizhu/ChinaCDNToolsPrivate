@@ -49,6 +49,17 @@ namespace ReadKeyvault
 
     public static class CredentialUtilities
     {
+        public static bool IsCertificate(this SecretInfo secret)
+        {
+            if (secret == null)
+            {
+                return false;
+            }
+
+            return secret.ContentType == CertificateContentType.Pem ||
+                   secret.ContentType == CertificateContentType.Pfx;
+        }
+
         public static SecretInfo ToSecretInfo(this SecretBundle secret)
         {
             if (secret == null)
@@ -280,7 +291,7 @@ namespace ReadKeyvault
 
         internal async Task DeleteAllSecrets(Predicate<SecretInfo> isMathced)
         {
-            List<SecretInfo> allSecrets = await this.GetAllSecrets().ConfigureAwait(false);
+            List<SecretInfo> allSecrets = await this.GetAllSecrets(includeCertificates: false).ConfigureAwait(false);
             List<SecretInfo> secrets = allSecrets.Where(x => isMathced(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
@@ -562,7 +573,7 @@ namespace ReadKeyvault
             //List<Tuple<string, X509Certificate2>> results = new List<Tuple<string, X509Certificate2>>();
             List<SecretInfo> results = new List<SecretInfo>();
 
-            List<SecretInfo> allSecrets = await this.GetAllSecrets().ConfigureAwait(false);
+            List<SecretInfo> allSecrets = await this.GetAllSecrets(includeCertificates: true).ConfigureAwait(false);
             List<SecretInfo> secrets = allSecrets.Where(x => isMatch(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
@@ -578,7 +589,7 @@ namespace ReadKeyvault
             return results;
         }
 
-        public async Task<List<SecretInfo>> GetAllSecrets()
+        public async Task<List<SecretInfo>> GetAllSecrets(bool includeCertificates)
         {
             List<SecretItem> results = new List<SecretItem>();
 
@@ -600,7 +611,13 @@ namespace ReadKeyvault
                 }
             };
 
-            return results.Select(x => x.ToSecretInfo()).ToList();
+            var allSecrets = results.Select(x => x.ToSecretInfo()).ToList();
+            if (!includeCertificates)
+            {
+                allSecrets = allSecrets.Where(x => !x.IsCertificate()).ToList();
+            }
+
+            return allSecrets;
         }
 
         public async Task<List<CertificateInfo>> GetAllCertificates()
