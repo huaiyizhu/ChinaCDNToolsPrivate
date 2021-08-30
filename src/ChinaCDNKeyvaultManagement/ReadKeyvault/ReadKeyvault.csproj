@@ -69,6 +69,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArgumentValidations\ArgumentRequirements.cs" />
+    <Compile Include="ArgumentValidations\PropertyRequirements.cs" />
+    <Compile Include="ArgumentValidations\Requires.cs" />
+    <Compile Include="ArgumentValidations\ValidatedNotNullAttribute.cs" />
     <Compile Include="CommandOptions.cs" />
     <Compile Include="KeyVaultAccess.cs" />
     <Compile Include="Program.cs" />

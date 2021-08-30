@@ -9,6 +9,8 @@ namespace ReadKeyvault
 {
     public enum OperationType
     {
+        list,
+
         get,
 
         update,
@@ -33,7 +35,7 @@ namespace ReadKeyvault
                                        "\r\nmccdndeployprodv2-cme" +
                                        "\r\nmccdndeployprod-cme" +
                                        "\r\nmccdnintkvn2";
-        const string operationsString = "get, update, delete, sync";
+        const string operationsString = "list, get, update, delete, sync";
         const string targetsString = "secret, certificate";
 
         [Option('o', "operation", Required = true, HelpText = "Operation type, can be following values: " + operationsString)]
@@ -52,7 +54,7 @@ namespace ReadKeyvault
             HelpText = "Destination key vault name, can be following values: " + keyvaultsString)]
         public string DstKeyVault { get; set; }
 
-        [Option('n', "name", Required = true, HelpText = "Operation Target Name")]
+        [Option('n', "name", Required = false, HelpText = "Operation Target Name")]
         public string TargetName { get; set; }
 
         [Option("force", Required = false, HelpText = "True to force override existing key vault values")]

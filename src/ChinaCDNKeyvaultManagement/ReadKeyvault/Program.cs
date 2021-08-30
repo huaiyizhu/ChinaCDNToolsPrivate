@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using CommandLine;
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.SqlServer.Server;
+using Microsoft.Cloud.MooncakeService.Common;
 
 namespace ReadKeyvault
 {
@@ -227,6 +228,9 @@ namespace ReadKeyvault
             {
                 switch (command.Operation)
                 {
+                    case OperationType.list:
+                        ProcessListAction(command);
+                        break;
                     case OperationType.sync:
                         ProcessSyncAction(command);
                         break;
@@ -247,34 +251,77 @@ namespace ReadKeyvault
             }
         }
 
+        private static void ProcessListAction(CommandOptions command)
+        {
+            Console.WriteLine($"Begin to list secret/certificate '{command.TargetName}' from source key vault '{command.SrcKeyVault}'...");
+            KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
+            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+            if (command.Target == OperationTarget.certificate)
+            {
+                var certificates = kv.GetAllCertificates().Result;
+                Console.WriteLine($"Total certificates: {certificates.Count}");
+                foreach (var cert in certificates)
+                {
+                    Console.WriteLine($"  {cert}");
+                }
+            }
+            else
+            {
+                var secrets = kv.GetAllSecrets().Result;
+                Console.WriteLine($"Total secrets: {secrets.Count}");
+                foreach (var secret in secrets)
+                {
+                    Console.WriteLine($"  {secret}");
+                }
+            }
+        }
+
         private static void ProcessSyncAction(CommandOptions command)
         {
-            if (string.IsNullOrEmpty(command.DstKeyVault))
-            {
-                throw new ArgumentNullException("dstkv should be provided");
-            }
+            Requires.Argument("dstkv", command.DstKeyVault).NotNullOrEmpty();
+            Requires.Argument("name", command.TargetName).NotNullOrEmpty();
 
             Console.WriteLine($"Begin to sync secret/certificate '{command.TargetName}' from source key vault '{command.SrcKeyVault}' to dest key vaule '{command.DstKeyVault}'. Override if exist: {command.OverrideIfExist}");
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultSettingInfo dstKVInfo = GetPredefinedKeyVaults(command.DstKeyVault);
 
-            // TODO: verify sync certificate
-            CopySecretAsync(
-                srcKVInfo,
-                dstKVInfo,
-                command.TargetName,
-                command.OverrideIfExist).Wait();
+            if (command.Target == OperationTarget.certificate)
+            {
+                CopyCertificate(
+                    srcKVInfo,
+                    dstKVInfo,
+                    command.TargetName,
+                    command.OverrideIfExist).Wait();
+            }
+            else
+            {
+                CopySecretAsync(
+                    srcKVInfo,
+                    dstKVInfo,
+                    command.TargetName,
+                    command.OverrideIfExist).Wait();
+            }
         }
 
         private static void ProcessGetAction(CommandOptions command)
         {
-            Console.WriteLine($"Begin to find secret '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+            Requires.Argument("name", command.TargetName).NotNullOrEmpty();
+
+            Console.WriteLine($"Begin to find {command.Target} '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
             KeyVaultSettingInfo srcKV = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKV);
             if (command.Target == OperationTarget.certificate)
             {
-                throw new NotImplementedException();
+                var cert = kv.GetExistingCertificate(command.TargetName).Result;
+                if (cert == null)
+                {
+                    Console.WriteLine($"Cannot find certificate '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+                }
+                else
+                {
+                    Console.WriteLine($"Certificate is {cert}");
+                }
             }
             else
             {
@@ -461,9 +508,9 @@ namespace ReadKeyvault
             File.WriteAllLines(@"d:\temp\secretstore\dstcert.txt", results);
         }
 
-        private static bool IsGuidSecret(SecretItem cert)
+        private static bool IsGuidSecret(SecretInfo cert)
         {
-            return !IsNotGuidName(cert.Identifier.Name);
+            return !IsNotGuidName(cert.Name);
         }
 
         private static bool IsGuidCertificate(CertificateItem cert)
@@ -488,7 +535,7 @@ namespace ReadKeyvault
             dstkv.WriteSecret(secretName, secretValue, overwirteExisting).Wait();
         }
 
-        private static void ListSecrets(KeyVaultSettingInfo kvInfo, Predicate<SecretItem> match)
+        private static void ListSecrets(KeyVaultSettingInfo kvInfo, Predicate<SecretInfo> match)
         {
             Console.WriteLine("List Secrets for key vault {0}...", kvInfo);
 
@@ -503,23 +550,23 @@ namespace ReadKeyvault
             }
         }
 
-        private static List<CertificateItem> ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateItem> isMatched)
+        private static List<CertificateInfo> ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateInfo> isMatched)
         {
             Console.WriteLine("List Certificates for key vault {0}...", kvInfo);
 
             KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
             var allCertificates = kv.GetAllCertificates().Result;
-            List<CertificateItem> certs = allCertificates.Where(x => isMatched(x)).ToList();
+            List<CertificateInfo> certs = allCertificates.Where(x => isMatched(x)).ToList();
             return certs;
         }
 
-        private static List<CertificateItem> ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateItem> isMatched, Action<CertificateItem> outputAction = null)
+        private static List<CertificateInfo> ListCertificates(KeyVaultSettingInfo kvInfo, Predicate<CertificateInfo> isMatched, Action<CertificateInfo> outputAction = null)
         {
             Console.WriteLine("List Certificates for key vault {0}...", kvInfo);
 
             KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
             var allCertificates = kv.GetAllCertificates().Result;
-            List<CertificateItem> certs = allCertificates.Where(x => isMatched(x)).ToList();
+            List<CertificateInfo> certs = allCertificates.Where(x => isMatched(x)).ToList();
             Console.WriteLine($"Total Certificates: {allCertificates.Count}");
             Console.WriteLine($"Matched Certificates: {certs.Count}");
             foreach (var cert in certs)
@@ -530,8 +577,7 @@ namespace ReadKeyvault
                 }
                 else
                 {
-                    string thumbprint = BitConverter.ToString(cert.X509Thumbprint).Replace("-", "");
-                    Console.WriteLine($"Name: {cert.Id}, Thumbprint: {thumbprint}， NotBefore: {cert.Attributes.NotBefore}, Expires: {cert.Attributes.Expires}");
+                    Console.WriteLine($"Name: {cert.Id}, Thumbprint: {cert.Thumbprint}， NotBefore: {cert.NotBefore}, Expires: {cert.Expires}");
                 }
             }
 
@@ -551,7 +597,7 @@ namespace ReadKeyvault
             await dstkv.ImportSecretsAndCerts(new SecretInfo[] { secretItem }.ToList(), overwriteExisting).ConfigureAwait(false);
         }
 
-        private static void CopySecrets(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, Predicate<SecretItem> isMatched, bool overwriteExisting = false)
+        private static void CopySecrets(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, Predicate<SecretInfo> isMatched, bool overwriteExisting = false)
         {
             Console.WriteLine("CopySecrets from key vault {0} to {1}, overwrite existing: {2}, press any key to continue...", srcKvInfo, dstKvInfo, overwriteExisting);
             Console.ReadKey();
@@ -571,7 +617,7 @@ namespace ReadKeyvault
         }
 
 
-        private static void DeleteSecrets(KeyVaultSettingInfo deleteKvInfo, Predicate<SecretItem> isMatchedSecret)
+        private static void DeleteSecrets(KeyVaultSettingInfo deleteKvInfo, Predicate<SecretInfo> isMatchedSecret)
         {
             Console.WriteLine("DeteleSecrets for givin key vault {0}, press any key to continue...", deleteKvInfo);
             Console.ReadKey();
@@ -580,7 +626,7 @@ namespace ReadKeyvault
             kv.DeleteAllSecrets(isMatchedSecret).Wait();
         }
 
-        private static void DeleteCertificates(KeyVaultSettingInfo deleteKvInfo, Predicate<CertificateItem> isMatched)
+        private static void DeleteCertificates(KeyVaultSettingInfo deleteKvInfo, Predicate<CertificateInfo> isMatched)
         {
             Console.WriteLine("DeteleCertificates for givin key vault {0}, press any key to continue...", deleteKvInfo);
             Console.ReadKey();
@@ -589,7 +635,7 @@ namespace ReadKeyvault
             kv.DeleteAllCertificates(isMatched).Wait();
         }
 
-        private static void DisableCertificate(KeyVaultSettingInfo disableKvInfo, Predicate<CertificateItem> predict)
+        private static void DisableCertificate(KeyVaultSettingInfo disableKvInfo, Predicate<CertificateInfo> predict)
         {
             Console.WriteLine("DisableCertificates for givin key vault {0}, press any key to continue...", disableKvInfo);
             Console.ReadKey();
@@ -598,18 +644,32 @@ namespace ReadKeyvault
             kv.DisableAllCertificates(predict).Wait();
         }
 
-        private static void CopyCertificates(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, Predicate<CertificateItem> isMatched, bool overwriteExisting = false)
+        private static async Task CopyCertificate(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string name, bool overwriteExisting = false)
         {
-            Console.WriteLine("CopyCertificates from key vault {0} to {1}, overwrite existing: {2}, press any key to continue...", srcKvInfo, dstKvInfo, overwriteExisting);
-            Console.ReadKey();
-
             KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
+            var cert = await srckv.GetExistingCertificate(name).ConfigureAwait(false);
 
-            var certs = srckv.DownloadCertificates(isMatched).Result.ToList();
+            if (cert == null)
+            {
+                throw new KeyNotFoundException($"Cannot find certificate {name} from source key vault {srcKvInfo.Url}");
+            }
 
             KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
-            dstkv.ImportCertificates(certs, overwriteExisting).Wait();
+            await dstkv.ImportCertificate(cert, overwriteExisting).ConfigureAwait(false);
         }
+
+        //private static void CopyCertificates(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, Predicate<CertificateInfo> isMatched, bool overwriteExisting = false)
+        //{
+        //    Console.WriteLine("CopyCertificates from key vault {0} to {1}, overwrite existing: {2}, press any key to continue...", srcKvInfo, dstKvInfo, overwriteExisting);
+        //    Console.ReadKey();
+
+        //    KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
+
+        //    var certs = srckv.DownloadCertificates(isMatched).Result.ToList();
+
+        //    KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
+        //    dstkv.ImportCertificates(certs, overwriteExisting).Wait();
+        //}
 
         private static void CopyCustomerCertificates(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo)
         {

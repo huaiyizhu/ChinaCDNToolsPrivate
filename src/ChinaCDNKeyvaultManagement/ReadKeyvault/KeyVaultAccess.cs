@@ -14,9 +14,13 @@ namespace ReadKeyvault
 {
     public class SecretInfo
     {
+        public string Id { get; set; }
+
         public string Name { get; set; }
 
         public string Value { get; set; }
+
+        public bool? Enabled { get; set; }
 
         public IDictionary<string, string> Tags { get; set; }
 
@@ -28,7 +32,158 @@ namespace ReadKeyvault
 
         public override string ToString()
         {
-            return $"Name: {Name}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+            return $"Name: {Name}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+        }
+    }
+    public class CertificateInfo : SecretInfo
+    {
+        public string Thumbprint { get; set; }
+
+        public X509Certificate2 Certificate { get; set; }
+
+        public override string ToString()
+        {
+            return $"Name: {Name}, Thumbprint: {Thumbprint}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+        }
+    }
+
+    public static class CredentialUtilities
+    {
+        public static SecretInfo ToSecretInfo(this SecretBundle secret)
+        {
+            if (secret == null)
+            {
+                return null;
+            }
+
+            SecretInfo info = new SecretInfo
+            {
+                Id = secret.Id,
+                ContentType = secret.ContentType,
+                Name = secret.SecretIdentifier.Name,
+                Enabled = secret.Attributes.Enabled,
+                Expires = secret.Attributes.Expires,
+                NotBefore = secret.Attributes.NotBefore,
+                Value = secret.Value,
+                Tags = secret.Tags != null ? new Dictionary<string, string>(secret.Tags) : new Dictionary<string, string>(),
+            };
+
+            return info;
+        }
+
+        public static SecretInfo ToSecretInfo(this SecretItem secret)
+        {
+            if (secret == null)
+            {
+                return null;
+            }
+
+            SecretInfo info = new SecretInfo
+            {
+                Id = secret.Id,
+                ContentType = secret.ContentType,
+                Name = secret.Identifier.Name,
+                Enabled = secret.Attributes.Enabled,
+                Expires = secret.Attributes.Expires,
+                NotBefore = secret.Attributes.NotBefore,
+                Value = null,
+                Tags = secret.Tags != null ? new Dictionary<string, string>(secret.Tags) : new Dictionary<string, string>(),
+            };
+
+            return info;
+        }
+
+        public static CertificateInfo ToCertificateInfo(this SecretBundle secret)
+        {
+            if (secret == null)
+            {
+                return null;
+            }
+
+            X509Certificate2 x509cert = new X509Certificate2(Convert.FromBase64String(secret.Value));
+            CertificateInfo info = new CertificateInfo
+            {
+                Id = secret.Id,
+                ContentType = secret.ContentType,
+                Name = secret.SecretIdentifier.Name,
+                Enabled = secret.Attributes.Enabled,
+                Expires = secret.Attributes.Expires,
+                NotBefore = secret.Attributes.NotBefore,
+                Value = secret.Value,
+                Certificate = x509cert,
+                Thumbprint = x509cert.Thumbprint,
+                Tags = secret.Tags != null ? new Dictionary<string, string>(secret.Tags) : new Dictionary<string, string>(),
+            };
+
+            return info;
+        }
+
+        public static CertificateInfo ToCertificateInfo(this SecretInfo secret)
+        {
+            if (secret == null)
+            {
+                return null;
+            }
+
+            X509Certificate2 x509cert = new X509Certificate2(Convert.FromBase64String(secret.Value));
+            CertificateInfo info = new CertificateInfo
+            {
+                Id = secret.Id,
+                ContentType = secret.ContentType,
+                Name = secret.Name,
+                Enabled = secret.Enabled,
+                Expires = secret.Expires,
+                NotBefore = secret.NotBefore,
+                Value = secret.Value,
+                Certificate = x509cert,
+                Thumbprint = x509cert.Thumbprint,
+                Tags = secret.Tags != null ? new Dictionary<string, string>(secret.Tags) : new Dictionary<string, string>(),
+            };
+
+            return info;
+        }
+
+        public static CertificateInfo ToCertificateInfo(this CertificateBundle cert)
+        {
+            if (cert == null)
+            {
+                return null;
+            }
+
+            return new CertificateInfo
+            {
+                Id = cert.Id,
+                Name = cert.KeyIdentifier.Name,
+                Enabled = cert.Attributes.Enabled,
+                Certificate = new X509Certificate2(cert.Cer),
+                ContentType = cert.ContentType,
+                Value = Convert.ToBase64String(cert.Cer),
+                Expires = cert.Attributes.Expires,
+                NotBefore = cert.Attributes.NotBefore,
+                Thumbprint = BitConverter.ToString(cert.X509Thumbprint).Replace("-", ""),
+                Tags = cert.Tags == null ? new Dictionary<string, string>() : new Dictionary<string, string>(cert.Tags),
+            };
+        }
+
+        public static CertificateInfo ToCertificateInfo(this CertificateItem cert)
+        {
+            if (cert == null)
+            {
+                return null;
+            }
+
+            return new CertificateInfo
+            {
+                Id = cert.Id,
+                Name = cert.Identifier.Name,
+                Enabled = cert.Attributes.Enabled,
+                Certificate = null,
+                //ContentType = ,
+                Expires = cert.Attributes.Expires,
+                NotBefore = cert.Attributes.NotBefore,
+                Thumbprint = BitConverter.ToString(cert.X509Thumbprint).Replace("-", ""),
+                Tags = cert.Tags == null ? new Dictionary<string, string>() : new Dictionary<string, string>(cert.Tags),
+            };
         }
     }
 
@@ -89,16 +244,7 @@ namespace ReadKeyvault
                                  .ConfigureAwait(false)
                                  .GetAwaiter().GetResult();
 
-                SecretInfo info = new SecretInfo
-                {
-                    ContentType = bundle.ContentType,
-                    Name = bundle.SecretIdentifier.Name,
-                    Expires = bundle.Attributes.Expires,
-                    NotBefore = bundle.Attributes.NotBefore,
-                    Value = bundle.Value,
-                    Tags = bundle.Tags != null ? new Dictionary<string, string>(bundle.Tags) : new Dictionary<string, string>(),
-                };
-
+                var info = bundle.ToSecretInfo();
                 return info;
             }
             catch (AdalServiceException)
@@ -132,10 +278,10 @@ namespace ReadKeyvault
             return item.Value;
         }
 
-        internal async Task DeleteAllSecrets(Predicate<SecretItem> isMathced)
+        internal async Task DeleteAllSecrets(Predicate<SecretInfo> isMathced)
         {
-            List<SecretItem> allSecrets = await this.GetAllSecrets().ConfigureAwait(false);
-            List<SecretItem> secrets = allSecrets.Where(x => isMathced(x)).ToList();
+            List<SecretInfo> allSecrets = await this.GetAllSecrets().ConfigureAwait(false);
+            List<SecretInfo> secrets = allSecrets.Where(x => isMathced(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
             Console.WriteLine("Secrets to be deleted: {0}", secrets.Count);
@@ -143,21 +289,21 @@ namespace ReadKeyvault
             foreach (var secret in secrets)
             {
                 Console.WriteLine("Deleting Secret {0} in key vault...", secret.Id);
-                await this.keyVaultClient.DeleteSecretAsync(this.keyvaultUrl, secret.Identifier.Name).ConfigureAwait(false);
+                await this.keyVaultClient.DeleteSecretAsync(this.keyvaultUrl, secret.Name).ConfigureAwait(false);
             }
         }
 
-        internal async Task DisableAllCertificates(Predicate<CertificateItem> isMatched)
+        internal async Task DisableAllCertificates(Predicate<CertificateInfo> isMatched)
         {
-            List<CertificateItem> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
-            List<CertificateItem> certificates = allCertificates.Where(x => isMatched(x)).ToList();
+            List<CertificateInfo> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
+            List<CertificateInfo> certificates = allCertificates.Where(x => isMatched(x)).ToList();
 
             Console.WriteLine("Total Certificates: {0}", allCertificates.Count);
             Console.WriteLine("Certificates to be disabled: {0}", certificates.Count);
 
             foreach (var cert in certificates)
             {
-                Console.WriteLine("Disabling Certificate {0} in key vault...", cert.Id);
+                Console.WriteLine("Disabling Certificate {0} in key vault...", cert.Name);
                // await this.keyVaultClient.DeleteCertificateAsync(this.keyvaultUrl, cert.Identifier.Name).ConfigureAwait(false);
             }
         }
@@ -189,10 +335,10 @@ namespace ReadKeyvault
             Console.WriteLine("Completed");
         }
 
-        internal async Task DeleteAllCertificates(Predicate<CertificateItem> isMathced)
+        internal async Task DeleteAllCertificates(Predicate<CertificateInfo> isMathced)
         {
-            List<CertificateItem> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
-            List<CertificateItem> certificates = allCertificates.Where(x => isMathced(x)).ToList();
+            List<CertificateInfo> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
+            List<CertificateInfo> certificates = allCertificates.Where(x => isMathced(x)).ToList();
 
             Console.WriteLine("Total Certificates: {0}", allCertificates.Count);
             Console.WriteLine("Certificates to be deleted: {0}", certificates.Count);
@@ -202,7 +348,7 @@ namespace ReadKeyvault
                 Console.WriteLine("Deleting Certificate {0} in key vault...", cert.Id);
                 Console.WriteLine("Press any key to continue...");
                 Console.ReadLine();
-                await this.keyVaultClient.DeleteCertificateAsync(this.keyvaultUrl, cert.Identifier.Name).ConfigureAwait(false);
+                await this.keyVaultClient.DeleteCertificateAsync(this.keyvaultUrl, cert.Name).ConfigureAwait(false);
             }
         }
 
@@ -230,7 +376,7 @@ namespace ReadKeyvault
                                 info.Expires != secret.Attributes.Expires ||
                                 info.NotBefore != secret.Attributes.NotBefore)
                             {
-                                Console.WriteLine("Importing Secret {0} to keyvault with new value: {1}", info.Name, info.Value);
+                                Console.WriteLine($"Importing Secret {info.Name} with new value '{info.Value}' to keyvault {this.keyvaultUrl}");
                                 SecretAttributes attribute = new SecretAttributes(true, info.NotBefore, info.Expires);
                                 await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, info.Name, info.Value, info.Tags, info.ContentType, attribute).ConfigureAwait(false);
                             }
@@ -248,7 +394,7 @@ namespace ReadKeyvault
                     {
                         if (isCertificate)
                         {
-                            Console.WriteLine("Importing Certificate {0} to keyvault", info.Name);
+                            Console.WriteLine($"Importing Certificate {info.Name} to keyvault {this.keyvaultUrl}");
                             CertificatePolicy policy = new CertificatePolicy
                             {
                                 KeyProperties = new KeyProperties
@@ -273,7 +419,7 @@ namespace ReadKeyvault
                         }
                         else
                         {
-                            Console.WriteLine("Importing Secret {0} to keyvault", info.Name);
+                            Console.WriteLine($"Importing Secret {info.Name} to keyvault {this.keyvaultUrl}");
                             SecretAttributes attribute = new SecretAttributes(true, info.NotBefore, info.Expires);
                             await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, info.Name, info.Value, info.Tags, info.ContentType, attribute).ConfigureAwait(false);
                         }
@@ -282,20 +428,17 @@ namespace ReadKeyvault
             }
         }
 
-        private async Task<X509Certificate2> GetExistingCertificate(string certName)
+        public async Task<CertificateInfo> GetExistingCertificate(string certName)
         {
             try
             {
                 var cert = await this.keyVaultClient.GetCertificateAsync(this.keyvaultUrl, certName).ConfigureAwait(false);
-
                 if (cert != null)
                 {
-                    return new X509Certificate2(cert.Cer);
+                    return (await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, certName).ConfigureAwait(false)).ToCertificateInfo();
                 }
-                else
-                {
-                    return null;
-                }
+
+                return null;
             }
             catch (KeyVaultErrorException ex)
             {
@@ -316,11 +459,11 @@ namespace ReadKeyvault
             try
             {
                 var secret = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name).ConfigureAwait(false);
-                Console.WriteLine("[====Warning===] Secret {0} already in keyvault", name);
+                Console.WriteLine($"[====Warning===] Secret {name} already in keyvault {this.keyvaultUrl}");
 
                 if(overwriteExisting)
                 {
-                    Console.WriteLine("Importing Secret {0} to keyvault", name);
+                    Console.WriteLine($"Importing Secret {name} to keyvault {this.keyvaultUrl}");
                     await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, name, value).ConfigureAwait(false);
                 }
             }
@@ -329,7 +472,7 @@ namespace ReadKeyvault
                 if (ex.Response != null &&
                     ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    Console.WriteLine("Importing Secret {0} to keyvault", name);
+                    Console.WriteLine($"Importing Secret {name} to keyvault {this.keyvaultUrl}");
                     await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, name, value).ConfigureAwait(false);
                 }
             }
@@ -341,21 +484,39 @@ namespace ReadKeyvault
             return policy;
         }
 
-        public async Task ImportCertificates(List<Tuple<string, string, string>> certificates, bool overwriteExisting = false)
+        public async Task ImportCertificate(CertificateInfo cert, bool overwriteExisting = false)
         {
-            foreach (var info in certificates)
-            {
-                string name = info.Item1;
-                string thumbprint = info.Item2;
-                string content = info.Item3;
+            var existingCert = this.GetSecretItem(cert.Name).ToCertificateInfo();
+            bool doImport = false;
 
-                X509Certificate2 existingCert = await this.GetExistingCertificate(name).ConfigureAwait(false);
+            if (existingCert != null)
+            {
+                Console.WriteLine($"[====Warning===] Certificate {cert.Name}: Overwrite Existing: {overwriteExisting}.\n\tExisting: {existingCert.Thumbprint}\n\tNew:      {cert.Thumbprint}");
+                doImport = overwriteExisting && existingCert.Thumbprint != cert.Thumbprint;
+            }
+            else
+            {
+                doImport = true;
+            }
+
+            if (doImport)
+            {
+                Console.WriteLine($"Importing Certificate {cert.Name} {cert.Thumbprint} to keyvault {this.keyvaultUrl}");
+                await this.keyVaultClient.ImportCertificateAsync(this.keyvaultUrl, cert.Name, cert.Value).ConfigureAwait(false);
+            }
+        }
+
+        public async Task ImportCertificates(List<CertificateInfo> certificates, bool overwriteExisting = false)
+        {
+            foreach (var cert in certificates)
+            {
+                CertificateInfo existingCert = await this.GetExistingCertificate(cert.Name).ConfigureAwait(false);
                 bool doImport = false;
 
                 if (existingCert != null)
                 {
-                    Console.WriteLine($"[====Warning===] Certificate {name}: Overwrite Existing: {overwriteExisting}.\n\tExisting: {existingCert.Thumbprint}\n\tNew:      {thumbprint}");
-                    doImport = overwriteExisting && existingCert.Thumbprint != thumbprint;
+                    Console.WriteLine($"[====Warning===] Certificate {cert.Name}: Overwrite Existing: {overwriteExisting}.\n\tExisting: {existingCert.Thumbprint}\n\tNew:      {cert.Thumbprint}");
+                    doImport = overwriteExisting && existingCert.Thumbprint != cert.Thumbprint;
                 }
                 else
                 {
@@ -364,68 +525,60 @@ namespace ReadKeyvault
 
                 if (doImport)
                 {
-                    Console.WriteLine($"Importing Certificate {name} {thumbprint} to keyvault");
-                    await this.keyVaultClient.ImportCertificateAsync(this.keyvaultUrl, info.Item1, content).ConfigureAwait(false);
+                    Console.WriteLine($"Importing Certificate {cert.Name} {cert.Thumbprint} to keyvault");
+                    await this.keyVaultClient.ImportCertificateAsync(this.keyvaultUrl, cert.Name, cert.Value).ConfigureAwait(false);
                 }
             }
         }
 
-        public async Task<IEnumerable<Tuple<string, string, string>>> DownloadCertificates(Predicate<CertificateItem> isMatch)
+        public async Task<IEnumerable<Tuple<string, string, string>>> DownloadCertificates(Predicate<CertificateInfo> isMatch)
         {
             //List<Tuple<string, X509Certificate2>> results = new List<Tuple<string, X509Certificate2>>();
             List<Tuple<string, string, string>> results = new List<Tuple<string, string, string>>();
 
-            List<CertificateItem> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
-            List<CertificateItem> certificates = allCertificates.Where(x => isMatch(x)).ToList();
+            List<CertificateInfo> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
+            List<CertificateInfo> certificates = allCertificates.Where(x => isMatch(x)).ToList();
 
             Console.WriteLine("Total Certificates: {0}", allCertificates.Count);
             Console.WriteLine("Certificates to be downloaded: {0}", certificates.Count);
 
             foreach (var certificate in certificates)
             {
-                var secretBundle = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, certificate.Identifier.Name).ConfigureAwait(false);
+                var secretBundle = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, certificate.Name).ConfigureAwait(false);
 
                 //string thumbprint = Convert.ToBase64String(certificate.X509Thumbprint);
                 byte[] raw =  Convert.FromBase64String(secretBundle.Value);
                 X509Certificate2 cert = new X509Certificate2(raw);
                 string thumbprint = cert.Thumbprint;
 
-                results.Add(new Tuple<string, string, string>(certificate.Identifier.Name, thumbprint, secretBundle.Value));
+                results.Add(new Tuple<string, string, string>(certificate.Name, thumbprint, secretBundle.Value));
             }
 
             return results;
         }
 
-        public async Task<IEnumerable<SecretInfo>> DownloadSecretsAndCerts(Predicate<SecretItem> isMatch)
+        public async Task<IEnumerable<SecretInfo>> DownloadSecretsAndCerts(Predicate<SecretInfo> isMatch)
         {
             //List<Tuple<string, X509Certificate2>> results = new List<Tuple<string, X509Certificate2>>();
             List<SecretInfo> results = new List<SecretInfo>();
 
-            List<SecretItem> allSecrets = await this.GetAllSecrets().ConfigureAwait(false);
-            List<SecretItem> secrets = allSecrets.Where(x => isMatch(x)).ToList();
+            List<SecretInfo> allSecrets = await this.GetAllSecrets().ConfigureAwait(false);
+            List<SecretInfo> secrets = allSecrets.Where(x => isMatch(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
             Console.WriteLine("Secrets to be downloaded: {0}", secrets.Count);
 
             foreach (var secret in secrets)
             {
-                var secretBundle = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secret.Identifier.Name).ConfigureAwait(false);
-                SecretInfo info = new SecretInfo
-                {
-                    Name = secret.Identifier.Name,
-                    Value = secretBundle.Value,
-                    Tags = secretBundle.Tags,
-                    ContentType = secretBundle.ContentType,
-                    NotBefore = secretBundle.Attributes.NotBefore,
-                    Expires = secretBundle.Attributes.Expires,
-                };
+                var secretBundle = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secret.Name).ConfigureAwait(false);
+                SecretInfo info = secretBundle.ToSecretInfo();
                 results.Add(info);
             }
 
             return results;
         }
 
-        private async Task<List<SecretItem>> GetAllSecrets()
+        public async Task<List<SecretInfo>> GetAllSecrets()
         {
             List<SecretItem> results = new List<SecretItem>();
 
@@ -447,10 +600,10 @@ namespace ReadKeyvault
                 }
             };
 
-            return results;
+            return results.Select(x => x.ToSecretInfo()).ToList();
         }
 
-        public async Task<List<CertificateItem>> GetAllCertificates()
+        public async Task<List<CertificateInfo>> GetAllCertificates()
         {
             List<CertificateItem> results = new List<CertificateItem>();
 
@@ -472,7 +625,7 @@ namespace ReadKeyvault
                 }
             };
 
-            return results;
+            return results.Select(x => x.ToCertificateInfo()).ToList();
         }
 
         /// <summary>
