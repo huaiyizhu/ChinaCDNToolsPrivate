@@ -13,6 +13,8 @@ namespace ReadKeyvault
 
         get,
 
+        add,
+
         update,
 
         delete,
@@ -35,7 +37,14 @@ namespace ReadKeyvault
                                        "\r\nmccdndeployprodv2-cme" +
                                        "\r\nmccdndeployprod-cme" +
                                        "\r\nmccdnintkvn2";
-        const string operationsString = "list, get, update, delete, sync";
+
+        const string operationsString = "\r\nlist" + 
+                                        "\r\nget" +
+                                        "\r\nadd" +
+                                        "\r\nupdate" +
+                                        "\r\ndelete" +
+                                        "\r\nsync";
+
         const string targetsString = "secret, certificate";
 
         [Option('o', "operation", Required = true, HelpText = "Operation type, can be following values: " + operationsString)]
@@ -62,5 +71,8 @@ namespace ReadKeyvault
 
         [Option("expired", Required = false, HelpText = "The expired date to update secret")]
         public DateTimeOffset? ExpiredDate { get; set; }
+
+        [Option("value", Required = false, HelpText = "Secret value")]
+        public string Value { get; set; }
     }
 }

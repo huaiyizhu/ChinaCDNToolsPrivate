@@ -86,6 +86,9 @@ namespace ReadKeyvault
                     case OperationType.get:
                         ProcessGetAction(command);
                         break;
+                    case OperationType.add:
+                        ProcessAddAction(command);
+                        break;
                     case OperationType.delete:
                         ProcessDeleteAction(command);
                         break;
@@ -100,6 +103,22 @@ namespace ReadKeyvault
             {
                 Console.WriteLine(ex);
             }
+        }
+
+        private static void ProcessAddAction(CommandOptions command)
+        {
+            Requires.Argument("name", command.TargetName).NotNullOrEmpty();
+            Requires.Argument("value", command.Value).NotNullOrEmpty();
+            Requires.Argument("expired", command.ExpiredDate).NotNull();
+            Requires.Argument("target", command.Target).PassPredication(x => x == OperationTarget.secret, "only secret type is supported");
+
+            Console.WriteLine($"Begin to add {command.Target} '{command.TargetName}' for source key vault '{command.SrcKeyVault}', value: {command.Value}, expired date {command.ExpiredDate}, overwrite existing: {command.OverrideIfExist}...");
+
+            KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
+            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+
+            kv.WriteSecret(command.TargetName, command.Value, command.ExpiredDate.Value, command.OverrideIfExist).Wait();
+
         }
 
         private static void ProcessUpdateAction(CommandOptions command)
@@ -365,12 +384,6 @@ namespace ReadKeyvault
         {
             Guid guid;
             return !Guid.TryParse(name, out guid);
-        }
-
-        private static void WriteSecret(string secretName, string secretValue, KeyVaultSettingInfo dstKvInfo, bool overwirteExisting = false)
-        {
-            KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo.Url, dstKvInfo.AADInfo);
-            dstkv.WriteSecret(secretName, secretValue, overwirteExisting).Wait();
         }
 
         private static async Task CopySecretAsync(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string secretName, bool overwriteExisting = false)

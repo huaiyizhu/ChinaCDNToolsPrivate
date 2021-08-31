@@ -465,7 +465,7 @@ namespace ReadKeyvault
             }
         }
 
-        public async Task WriteSecret(string name, string value, bool overwriteExisting)
+        public async Task WriteSecret(string name, string value, DateTimeOffset expiredDate, bool overwriteExisting)
         {
             try
             {
@@ -474,8 +474,9 @@ namespace ReadKeyvault
 
                 if(overwriteExisting)
                 {
-                    Console.WriteLine($"Importing Secret {name} to keyvault {this.keyvaultUrl}");
-                    await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, name, value).ConfigureAwait(false);
+                    Console.WriteLine($"Importing Secret {name} to keyvault {this.keyvaultUrl}, expired date {expiredDate}");
+                    SecretAttributes attributes = new SecretAttributes(true, null, expiredDate.UtcDateTime);
+                    await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, name, value, null, null, attributes).ConfigureAwait(false);
                 }
             }
             catch (KeyVaultErrorException ex)
@@ -484,7 +485,8 @@ namespace ReadKeyvault
                     ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     Console.WriteLine($"Importing Secret {name} to keyvault {this.keyvaultUrl}");
-                    await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, name, value).ConfigureAwait(false);
+                    SecretAttributes attributes = new SecretAttributes(true, null, expiredDate.UtcDateTime);
+                    await this.keyVaultClient.SetSecretAsync(this.keyvaultUrl, name, value, null, null, attributes).ConfigureAwait(false);
                 }
             }
         }
