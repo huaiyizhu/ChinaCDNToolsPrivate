@@ -10,7 +10,7 @@ using Microsoft.Azure.KeyVault.Models;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.Rest.Azure;
 
-namespace ReadKeyvault
+namespace Mooncake.Cdn.CredentialManagementTool
 {
     public class SecretInfo
     {
@@ -247,13 +247,12 @@ namespace ReadKeyvault
             GC.SuppressFinalize(this);
         }
 
-        public SecretInfo GetSecretItem(string name)
+        public async Task<SecretInfo> GetSecretItemAsync(string name)
         {
             try
             {
-                var bundle = this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name)
-                                 .ConfigureAwait(false)
-                                 .GetAwaiter().GetResult();
+                var bundle = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name)
+                                 .ConfigureAwait(false);
 
                 var info = bundle.ToSecretInfo();
                 return info;
@@ -283,15 +282,15 @@ namespace ReadKeyvault
         /// <returns>
         /// Secret value
         /// </returns>
-        public string GetSecret(string name)
+        public async Task<string> GetSecretAsync(string name)
         {
-            var item = GetSecretItem(name);
+            var item = await GetSecretItemAsync(name).ConfigureAwait(false);
             return item.Value;
         }
 
-        internal async Task DeleteAllSecrets(Predicate<SecretInfo> isMathced)
+        internal async Task DeleteAllSecretsAsync(Predicate<SecretInfo> isMathced)
         {
-            List<SecretInfo> allSecrets = await this.GetAllSecrets(includeCertificates: false).ConfigureAwait(false);
+            List<SecretInfo> allSecrets = await this.GetAllSecretsAsync(includeCertificates: false).ConfigureAwait(false);
             List<SecretInfo> secrets = allSecrets.Where(x => isMathced(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
@@ -304,9 +303,9 @@ namespace ReadKeyvault
             }
         }
 
-        internal async Task DisableAllCertificates(Predicate<CertificateInfo> isMatched)
+        internal async Task DisableAllCertificatesAsync(Predicate<CertificateInfo> isMatched)
         {
-            List<CertificateInfo> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
+            List<CertificateInfo> allCertificates = await this.GetAllCertificatesAsync().ConfigureAwait(false);
             List<CertificateInfo> certificates = allCertificates.Where(x => isMatched(x)).ToList();
 
             Console.WriteLine("Total Certificates: {0}", allCertificates.Count);
@@ -319,14 +318,14 @@ namespace ReadKeyvault
             }
         }
 
-        internal async Task DeleteCertificate(string certName)
+        internal async Task DeleteCertificateAsync(string certName)
         {
             Console.Write("Deleting certificate {0} ...", certName);
             await this.keyVaultClient.DeleteCertificateAsync(this.keyvaultUrl, certName).ConfigureAwait(false);
             Console.WriteLine("Completed");
         }
 
-        internal async Task UpdateSecretExpirationDate(string secretName, DateTimeOffset expireDate)
+        internal async Task UpdateSecretExpirationDateAsync(string secretName, DateTimeOffset expireDate)
         {
             Console.Write("Updating secret {0}, expire date {1} ...", secretName, expireDate);
             var secret = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secretName).ConfigureAwait(false);
@@ -339,16 +338,16 @@ namespace ReadKeyvault
             Console.WriteLine("Completed");
         }
 
-        internal async Task DeleteSecret(string secretName)
+        internal async Task DeleteSecretAsync(string secretName)
         {
             Console.Write("Deleting secret {0} ...", secretName);
             await this.keyVaultClient.DeleteSecretAsync(this.keyvaultUrl, secretName).ConfigureAwait(false);
             Console.WriteLine("Completed");
         }
 
-        internal async Task DeleteAllCertificates(Predicate<CertificateInfo> isMathced)
+        internal async Task DeleteAllCertificatesAsync(Predicate<CertificateInfo> isMathced)
         {
-            List<CertificateInfo> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
+            List<CertificateInfo> allCertificates = await this.GetAllCertificatesAsync().ConfigureAwait(false);
             List<CertificateInfo> certificates = allCertificates.Where(x => isMathced(x)).ToList();
 
             Console.WriteLine("Total Certificates: {0}", allCertificates.Count);
@@ -363,7 +362,7 @@ namespace ReadKeyvault
             }
         }
 
-        public async Task ImportSecretsAndCerts(List<SecretInfo> secretsAndCerts, bool overwriteExisting = false)
+        public async Task ImportSecretsAndCertsAsync(List<SecretInfo> secretsAndCerts, bool overwriteExisting = false)
         {
             foreach (var info in secretsAndCerts)
             {
@@ -395,6 +394,10 @@ namespace ReadKeyvault
                             {
                                 Console.WriteLine($"Same secret value for secret {info.Name}, skip import");
                             }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Skip import, please use '--force' to force sync new secret value for secret {info.Name}");
                         }
                     }
                 }
@@ -439,7 +442,7 @@ namespace ReadKeyvault
             }
         }
 
-        public async Task<CertificateInfo> GetExistingCertificate(string certName)
+        public async Task<CertificateInfo> GetExistingCertificateAsync(string certName)
         {
             try
             {
@@ -465,7 +468,7 @@ namespace ReadKeyvault
             }
         }
 
-        public async Task WriteSecret(string name, string value, DateTimeOffset expiredDate, bool overwriteExisting)
+        public async Task WriteSecretAsync(string name, string value, DateTimeOffset expiredDate, bool overwriteExisting)
         {
             try
             {
@@ -491,15 +494,15 @@ namespace ReadKeyvault
             }
         }
 
-        public async Task<CertificatePolicy> GetCertificatePolicy(string certificateName)
+        public async Task<CertificatePolicy> GetCertificatePolicyAsync(string certificateName)
         {
             CertificatePolicy policy = await this.keyVaultClient.GetCertificatePolicyAsync(this.keyvaultUrl, certificateName).ConfigureAwait(false);
             return policy;
         }
 
-        public async Task ImportCertificate(CertificateInfo cert, bool overwriteExisting = false)
+        public async Task ImportCertificateAsync(CertificateInfo cert, bool overwriteExisting = false)
         {
-            var existingCert = this.GetSecretItem(cert.Name).ToCertificateInfo();
+            var existingCert = (await this.GetSecretItemAsync(cert.Name).ConfigureAwait(false)).ToCertificateInfo();
             bool doImport = false;
 
             if (existingCert != null)
@@ -517,13 +520,17 @@ namespace ReadKeyvault
                 Console.WriteLine($"Importing Certificate {cert.Name} {cert.Thumbprint} to keyvault {this.keyvaultUrl}");
                 await this.keyVaultClient.ImportCertificateAsync(this.keyvaultUrl, cert.Name, cert.Value).ConfigureAwait(false);
             }
+            else
+            {
+                Console.WriteLine($"Skip import, please use '--force' to force sync new certificate {cert.Name}");
+            }
         }
 
-        public async Task ImportCertificates(List<CertificateInfo> certificates, bool overwriteExisting = false)
+        public async Task ImportCertificatesAsync(List<CertificateInfo> certificates, bool overwriteExisting = false)
         {
             foreach (var cert in certificates)
             {
-                CertificateInfo existingCert = await this.GetExistingCertificate(cert.Name).ConfigureAwait(false);
+                CertificateInfo existingCert = await this.GetExistingCertificateAsync(cert.Name).ConfigureAwait(false);
                 bool doImport = false;
 
                 if (existingCert != null)
@@ -544,12 +551,12 @@ namespace ReadKeyvault
             }
         }
 
-        public async Task<IEnumerable<Tuple<string, string, string>>> DownloadCertificates(Predicate<CertificateInfo> isMatch)
+        public async Task<IEnumerable<Tuple<string, string, string>>> DownloadCertificatesAsync(Predicate<CertificateInfo> isMatch)
         {
             //List<Tuple<string, X509Certificate2>> results = new List<Tuple<string, X509Certificate2>>();
             List<Tuple<string, string, string>> results = new List<Tuple<string, string, string>>();
 
-            List<CertificateInfo> allCertificates = await this.GetAllCertificates().ConfigureAwait(false);
+            List<CertificateInfo> allCertificates = await this.GetAllCertificatesAsync().ConfigureAwait(false);
             List<CertificateInfo> certificates = allCertificates.Where(x => isMatch(x)).ToList();
 
             Console.WriteLine("Total Certificates: {0}", allCertificates.Count);
@@ -570,12 +577,12 @@ namespace ReadKeyvault
             return results;
         }
 
-        public async Task<IEnumerable<SecretInfo>> DownloadSecretsAndCerts(Predicate<SecretInfo> isMatch)
+        public async Task<IEnumerable<SecretInfo>> DownloadSecretsAndCertsAsync(Predicate<SecretInfo> isMatch)
         {
             //List<Tuple<string, X509Certificate2>> results = new List<Tuple<string, X509Certificate2>>();
             List<SecretInfo> results = new List<SecretInfo>();
 
-            List<SecretInfo> allSecrets = await this.GetAllSecrets(includeCertificates: true).ConfigureAwait(false);
+            List<SecretInfo> allSecrets = await this.GetAllSecretsAsync(includeCertificates: true).ConfigureAwait(false);
             List<SecretInfo> secrets = allSecrets.Where(x => isMatch(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
@@ -591,7 +598,7 @@ namespace ReadKeyvault
             return results;
         }
 
-        public async Task<List<SecretInfo>> GetAllSecrets(bool includeCertificates)
+        public async Task<List<SecretInfo>> GetAllSecretsAsync(bool includeCertificates)
         {
             List<SecretItem> results = new List<SecretItem>();
 
@@ -622,7 +629,7 @@ namespace ReadKeyvault
             return allSecrets;
         }
 
-        public async Task<List<CertificateInfo>> GetAllCertificates()
+        public async Task<List<CertificateInfo>> GetAllCertificatesAsync()
         {
             List<CertificateItem> results = new List<CertificateItem>();
 
@@ -669,14 +676,14 @@ namespace ReadKeyvault
             this.disposed = true;
         }
 
-        private static async Task<string> GetAccessTokenWithCert(string authority, string resource, string scope, ClientAssertionCertificate assertionCert)
+        private static async Task<string> GetAccessTokenWithCertAsync(string authority, string resource, string scope, ClientAssertionCertificate assertionCert)
         {
             AuthenticationContext context = new AuthenticationContext(authority, TokenCache.DefaultShared);
             AuthenticationResult result = await context.AcquireTokenAsync(resource, assertionCert).ConfigureAwait(false);
             return result.AccessToken;
         }
 
-        private static async Task<string> GetAccessTokenWithSecret(string authority, string resource, string scope, string clientId, string secret)
+        private static async Task<string> GetAccessTokenWithSecretAsync(string authority, string resource, string scope, string clientId, string secret)
         {
             AuthenticationContext context = new AuthenticationContext(authority, TokenCache.DefaultShared);
             AuthenticationResult result = await context.AcquireTokenAsync(resource, new ClientCredential(clientId, secret)).ConfigureAwait(false);
@@ -687,7 +694,7 @@ namespace ReadKeyvault
         {
             KeyVaultClient client = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(
                 (authority, resource, scope)
-                    => GetAccessTokenWithSecret(authority, resource, scope, authClientId, secret)));
+                    => GetAccessTokenWithSecretAsync(authority, resource, scope, authClientId, secret)));
 
             return client;
         }
@@ -705,7 +712,7 @@ namespace ReadKeyvault
 
             KeyVaultClient client = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(
                                        (authority, resource, scope)
-                                           => GetAccessTokenWithCert(authority, resource, scope, assertionCert)));
+                                           => GetAccessTokenWithCertAsync(authority, resource, scope, assertionCert)));
             return client;
         }
 

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using CommandLine;
 
-namespace ReadKeyvault
+namespace Mooncake.Cdn.CredentialManagementTool
 {
     public enum OperationType
     {

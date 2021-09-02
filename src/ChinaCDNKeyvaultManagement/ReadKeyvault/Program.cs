@@ -8,7 +8,7 @@ using CommandLine;
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Cloud.MooncakeService.Common;
 
-namespace ReadKeyvault
+namespace Mooncake.Cdn.CredentialManagementTool
 {
     public class AADSettingInfo
     {
@@ -46,7 +46,8 @@ namespace ReadKeyvault
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
                 CommandLine.Parser.Default.ParseArguments<CommandOptions>(args)
-                           .WithParsed(ProcessCommandLines);
+                                          .WithParsedAsync(ProcessCommandLines)
+                                          .Wait();
 
                 //DeleteCertificatesFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\cert-delete-list1.csv");
                 //DeleteCertificatesFromFile(@"D:\Work\CCIC\CDN\DeleteUnusedCertificates\cert-delete-list2.txt");
@@ -71,29 +72,30 @@ namespace ReadKeyvault
             }
         }
 
-        private static void ProcessCommandLines(CommandOptions command)
+        private static async Task ProcessCommandLines(CommandOptions command)
         {
             try
             {
+                Program program = new Program();
                 switch (command.Operation)
                 {
                     case OperationType.list:
-                        ProcessListAction(command);
+                        await program.ProcessListAction(command).ConfigureAwait(false);
                         break;
                     case OperationType.sync:
-                        ProcessSyncAction(command);
+                        await program.ProcessSyncAction(command).ConfigureAwait(false); ;
                         break;
                     case OperationType.get:
-                        ProcessGetAction(command);
+                        await program.ProcessGetAction(command).ConfigureAwait(false); ;
                         break;
                     case OperationType.add:
-                        ProcessAddAction(command);
+                        await program.ProcessAddAction(command).ConfigureAwait(false); ;
                         break;
                     case OperationType.delete:
-                        ProcessDeleteAction(command);
+                        await program.ProcessDeleteAction(command).ConfigureAwait(false); ;
                         break;
                     case OperationType.update:
-                        ProcessUpdateAction(command);
+                        await program.ProcessUpdateAction(command).ConfigureAwait(false); ;
                         break;
                     default:
                         throw new ArgumentException($"Unknown operation {command.Operation}");
@@ -105,7 +107,7 @@ namespace ReadKeyvault
             }
         }
 
-        private static void ProcessAddAction(CommandOptions command)
+        private async Task ProcessAddAction(CommandOptions command)
         {
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
             Requires.Argument("value", command.Value).NotNullOrEmpty();
@@ -117,11 +119,11 @@ namespace ReadKeyvault
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
 
-            kv.WriteSecret(command.TargetName, command.Value, command.ExpiredDate.Value, command.OverrideIfExist).Wait();
+            await kv.WriteSecretAsync(command.TargetName, command.Value, command.ExpiredDate.Value, command.OverrideIfExist).ConfigureAwait(false);
 
         }
 
-        private static void ProcessUpdateAction(CommandOptions command)
+        private async Task ProcessUpdateAction(CommandOptions command)
         {
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
             Requires.Argument("expired", command.ExpiredDate).NotNull();
@@ -132,10 +134,10 @@ namespace ReadKeyvault
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
 
-            kv.UpdateSecretExpirationDate(command.TargetName, command.ExpiredDate.Value).Wait();
+            await kv.UpdateSecretExpirationDateAsync(command.TargetName, command.ExpiredDate.Value).ConfigureAwait(false);
         }
 
-        private static void ProcessDeleteAction(CommandOptions command)
+        private async Task ProcessDeleteAction(CommandOptions command)
         {
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
 
@@ -155,22 +157,22 @@ namespace ReadKeyvault
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
             {
-                kv.DeleteCertificate(command.TargetName).Wait();
+                await kv.DeleteCertificateAsync(command.TargetName).ConfigureAwait(false);
             }
             else
             {
-                kv.DeleteSecret(command.TargetName).Wait();
+                await kv.DeleteSecretAsync(command.TargetName).ConfigureAwait(false);
             }
         }
 
-        private static void ProcessListAction(CommandOptions command)
+        private async Task ProcessListAction(CommandOptions command)
         {
             Console.WriteLine($"Begin to list {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}'...");
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
             {
-                var certificates = kv.GetAllCertificates().Result;
+                var certificates = await kv.GetAllCertificatesAsync().ConfigureAwait(false);
                 Console.WriteLine($"Total certificates: {certificates.Count}");
                 foreach (var cert in certificates)
                 {
@@ -179,7 +181,7 @@ namespace ReadKeyvault
             }
             else
             {
-                var secrets = kv.GetAllSecrets(includeCertificates: false).Result;
+                var secrets = await kv.GetAllSecretsAsync(includeCertificates: false).ConfigureAwait(false);
                 Console.WriteLine($"Total secrets: {secrets.Count}");
                 foreach (var secret in secrets)
                 {
@@ -188,7 +190,7 @@ namespace ReadKeyvault
             }
         }
 
-        private static void ProcessSyncAction(CommandOptions command)
+        private async Task ProcessSyncAction(CommandOptions command)
         {
             Requires.Argument("dstkv", command.DstKeyVault).NotNullOrEmpty();
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
@@ -200,23 +202,23 @@ namespace ReadKeyvault
 
             if (command.Target == OperationTarget.certificate)
             {
-                CopyCertificate(
+                await CopyCertificate(
                     srcKVInfo,
                     dstKVInfo,
                     command.TargetName,
-                    command.OverrideIfExist).Wait();
+                    command.OverrideIfExist).ConfigureAwait(false);
             }
             else
             {
-                CopySecretAsync(
+                await CopySecretAsync(
                     srcKVInfo,
                     dstKVInfo,
                     command.TargetName,
-                    command.OverrideIfExist).Wait();
+                    command.OverrideIfExist).ConfigureAwait(false);
             }
         }
 
-        private static void ProcessGetAction(CommandOptions command)
+        private async Task ProcessGetAction(CommandOptions command)
         {
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
 
@@ -225,7 +227,7 @@ namespace ReadKeyvault
             KeyVaultAccess kv = new KeyVaultAccess(srcKV);
             if (command.Target == OperationTarget.certificate)
             {
-                var cert = kv.GetExistingCertificate(command.TargetName).Result;
+                var cert = await kv.GetExistingCertificateAsync(command.TargetName).ConfigureAwait(false);
                 if (cert == null)
                 {
                     Console.WriteLine($"Cannot find certificate '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
@@ -237,7 +239,7 @@ namespace ReadKeyvault
             }
             else
             {
-                var secret = kv.GetSecretItem(command.TargetName);
+                var secret = await kv.GetSecretItemAsync(command.TargetName).ConfigureAwait(false);
                 if (secret == null)
                 {
                     Console.WriteLine($"Cannot find secret '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
@@ -249,7 +251,7 @@ namespace ReadKeyvault
             }
         }
 
-        private static void UpdateSecretsExpiredDateFromFile(string file)
+        private static async Task UpdateSecretsExpiredDateFromFile(string file)
         {
             string[] lines = File.ReadAllLines(file);
             var secretToUpdate = lines.Select(x =>
@@ -276,7 +278,7 @@ namespace ReadKeyvault
                 KeyVaultAccess kvAccess = new KeyVaultAccess(kvInfo);
                 foreach (var secret in keyvault)
                 {
-                    kvAccess.UpdateSecretExpirationDate(secret.ItemName, secret.ExpiredDate).Wait();
+                    await kvAccess.UpdateSecretExpirationDateAsync(secret.ItemName, secret.ExpiredDate).ConfigureAwait(false);
                 }
 
                 Console.WriteLine("[End] Completed update secrets' expiration date in keyvault {0}, total secrets {1}...", keyvault.Key, keyvault.Count());
@@ -284,7 +286,7 @@ namespace ReadKeyvault
             }
         }
 
-        private static void DeleteSecretsFromFile(string file)
+        private static async Task DeleteSecretsFromFile(string file)
         {
             string[] lines = File.ReadAllLines(file);
             var certsToDelete = lines.Select(item =>
@@ -307,7 +309,7 @@ namespace ReadKeyvault
                 KeyVaultAccess kvAccess = new KeyVaultAccess(kvInfo);
                 foreach (var secretToDelete in keyvault)
                 {
-                    kvAccess.DeleteSecret(secretToDelete.ItemName).Wait();
+                    await kvAccess.DeleteSecretAsync(secretToDelete.ItemName).ConfigureAwait(false);
                 }
 
                 Console.WriteLine("[End] Completed delete secret in keyvault {0}, total secrets {1}...", keyvault.Key, keyvault.Count());
@@ -315,7 +317,7 @@ namespace ReadKeyvault
             }
         }
 
-        private static void DeleteCertificatesFromFile(string file)
+        private static async Task DeleteCertificatesFromFile(string file)
         {
             string[] lines = File.ReadAllLines(file);
             var certsToDelete = lines.Select(item =>
@@ -338,31 +340,12 @@ namespace ReadKeyvault
                 KeyVaultAccess kvAccess = new KeyVaultAccess(kvInfo);
                 foreach (var certToDelete in keyvault)
                 {
-                    kvAccess.DeleteCertificate(certToDelete.ItemName).Wait();
+                    await kvAccess.DeleteCertificateAsync(certToDelete.ItemName).ConfigureAwait(false);
                 }
 
                 Console.WriteLine("[End] Completed delete certificate in keyvault {0}, total certificates {1}...", keyvault.Key, keyvault.Count());
                 Console.WriteLine();
             }
-        }
-
-        private static void BackupCustomerCertificates()
-        {
-
-            KeyVaultSettingInfo srcKvInfo = GetPredefinedKeyVaults("mccdnprod");
-
-            KeyVaultSettingInfo dstKvInfo = new KeyVaultSettingInfo
-            {
-                Url = "https://mccdn-prod-savecustomer.vault.azure.cn/",
-                AADInfo = new AADSettingInfo
-                {
-                    Name = "temp",
-                    ClientId = "e5853e7a-fb1d-439d-ac66-ca22b1054fc4",
-                    CertificateThumbprint = "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6",
-                }
-            };
-
-            CopyCustomerCertificates(srcKvInfo, dstKvInfo);
         }
 
         private static bool IsGuidSecret(SecretInfo cert)
@@ -389,48 +372,29 @@ namespace ReadKeyvault
         private static async Task CopySecretAsync(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string secretName, bool overwriteExisting = false)
         {
             KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
-            var secretItem = srckv.GetSecretItem(secretName);
+            var secretItem = await srckv.GetSecretItemAsync(secretName).ConfigureAwait(false);
             if (secretItem == null)
             {
                 throw new ArgumentException($"Cannot get secret '{secretName}' in source key vault '{srcKvInfo.Url}'");
             }
 
             KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
-            await dstkv.ImportSecretsAndCerts(new SecretInfo[] { secretItem }.ToList(), overwriteExisting).ConfigureAwait(false);
+            await dstkv.ImportSecretsAndCertsAsync(new SecretInfo[] { secretItem }.ToList(), overwriteExisting).ConfigureAwait(false);
         }
 
-        private static void CopySecrets(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, Predicate<SecretInfo> isMatched, bool overwriteExisting = false)
-        {
-            Console.WriteLine("CopySecrets from key vault {0} to {1}, overwrite existing: {2}, press any key to continue...", srcKvInfo, dstKvInfo, overwriteExisting);
-            Console.ReadKey();
-
-            KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
-
-            var certs = srckv.DownloadSecretsAndCerts(isMatched).Result.ToList();
-
-            string secretsName = string.Join(Environment.NewLine, certs.Select(x => x.Name));
-            Console.WriteLine($"Secrets to download Names: {secretsName}");
-
-            Console.WriteLine("Press any key to continue...");
-            Console.ReadKey();
-
-            KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
-            dstkv.ImportSecretsAndCerts(certs, overwriteExisting).Wait();
-        }
-
-        private static void DisableCertificate(KeyVaultSettingInfo disableKvInfo, Predicate<CertificateInfo> predict)
+        private static async Task DisableCertificate(KeyVaultSettingInfo disableKvInfo, Predicate<CertificateInfo> predict)
         {
             Console.WriteLine("DisableCertificates for givin key vault {0}, press any key to continue...", disableKvInfo);
             Console.ReadKey();
 
             KeyVaultAccess kv = new KeyVaultAccess(disableKvInfo);
-            kv.DisableAllCertificates(predict).Wait();
+            await kv.DisableAllCertificatesAsync(predict).ConfigureAwait(false);
         }
 
         private static async Task CopyCertificate(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string name, bool overwriteExisting = false)
         {
             KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
-            var cert = await srckv.GetExistingCertificate(name).ConfigureAwait(false);
+            var cert = await srckv.GetExistingCertificateAsync(name).ConfigureAwait(false);
 
             if (cert == null)
             {
@@ -438,25 +402,7 @@ namespace ReadKeyvault
             }
 
             KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
-            await dstkv.ImportCertificate(cert, overwriteExisting).ConfigureAwait(false);
-        }
-
-        private static void CopyCustomerCertificates(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo)
-        {
-            Console.WriteLine("CopyCustomerCertificates from key vault {0} to {1}, press any key to continue...", srcKvInfo, dstKvInfo);
-            Console.ReadKey();
-
-            Console.WriteLine("Beginig copy customer certificates...");
-
-            KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
-            KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
-
-            var secrets = srckv.DownloadSecretsAndCerts(IsGuidSecret).Result.ToList();
-            //var secrets = srckv.DownloadSecretsAndCerts(x => x.Identifier.Name == "15a11949-5a3e-11e8-be87-0017fa000909").Result.ToList();
-            dstkv.ImportSecretsAndCerts(secrets).Wait();
-
-            //var certificates = srckv.DownloadCertificates(IsGuidCertificate).Result.ToList();
-            //dstkv.ImportCertificates(certificates).Wait();
+            await dstkv.ImportCertificateAsync(cert, overwriteExisting).ConfigureAwait(false);
         }
 
         private static string KeyvaultReaderSecretRetriever()
@@ -464,7 +410,7 @@ namespace ReadKeyvault
             var kvInfo = GetPredefinedKeyVaults("mccdn-prodsecrets-holder");
 
             KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
-            var secret = kv.GetSecret("CertificateRepositoryKeyVaultClientSecret");
+            var secret = kv.GetSecretAsync("CertificateRepositoryKeyVaultClientSecret").GetAwaiter().GetResult();
             return secret;
         }
 
