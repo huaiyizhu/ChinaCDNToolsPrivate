@@ -167,7 +167,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         private async Task ProcessListAction(CommandOptions command)
         {
-            Console.WriteLine($"Begin to list {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}'...");
+            Console.WriteLine($"Begin to list all {command.Target} of source key vault '{command.SrcKeyVault}', show secret value {command.GetSecretValue}...");
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
@@ -181,11 +181,12 @@ namespace Mooncake.Cdn.CredentialManagementTool
             }
             else
             {
-                var secrets = await kv.GetAllSecretsAsync(includeCertificates: false).ConfigureAwait(false);
+                var secrets = await kv.GetAllSecretsAsync(includeCertificates: false, showSecretValue: command.GetSecretValue).ConfigureAwait(false);
                 Console.WriteLine($"Total secrets: {secrets.Count}");
                 foreach (var secret in secrets)
                 {
-                    Console.WriteLine($"  {secret}");
+                    string result = command.GetSecretValue ? secret.ToStringWithSecretValue() : secret.ToString();
+                    Console.WriteLine($"  {result}");
                 }
             }
         }
@@ -222,7 +223,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
         {
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
 
-            Console.WriteLine($"Begin to find {command.Target} '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+            Console.WriteLine($"Begin to find {command.Target} '{command.TargetName}' under key vault '{command.SrcKeyVault}', show secret value: {command.GetSecretValue}");
             KeyVaultSettingInfo srcKV = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKV);
             if (command.Target == OperationTarget.certificate)
@@ -246,7 +247,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 }
                 else
                 {
-                    Console.WriteLine($"Secret is {secret}");
+                    string result = command.GetSecretValue ? secret.ToStringWithSecretValue() : secret.ToString();
+                    Console.WriteLine($"Secret is {result}");
                 }
             }
         }

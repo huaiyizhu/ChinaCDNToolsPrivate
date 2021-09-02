@@ -34,6 +34,11 @@ namespace Mooncake.Cdn.CredentialManagementTool
         {
             return $"Name: {Name}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
         }
+
+        public string ToStringWithSecretValue()
+        {
+            return $"Name: {Name}, Value: {Value}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+        }
     }
     public class CertificateInfo : SecretInfo
     {
@@ -290,7 +295,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         internal async Task DeleteAllSecretsAsync(Predicate<SecretInfo> isMathced)
         {
-            List<SecretInfo> allSecrets = await this.GetAllSecretsAsync(includeCertificates: false).ConfigureAwait(false);
+            List<SecretInfo> allSecrets = await this.GetAllSecretsAsync(includeCertificates: false, showSecretValue: false).ConfigureAwait(false);
             List<SecretInfo> secrets = allSecrets.Where(x => isMathced(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
@@ -582,7 +587,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             //List<Tuple<string, X509Certificate2>> results = new List<Tuple<string, X509Certificate2>>();
             List<SecretInfo> results = new List<SecretInfo>();
 
-            List<SecretInfo> allSecrets = await this.GetAllSecretsAsync(includeCertificates: true).ConfigureAwait(false);
+            List<SecretInfo> allSecrets = await this.GetAllSecretsAsync(includeCertificates: true, showSecretValue: true).ConfigureAwait(false);
             List<SecretInfo> secrets = allSecrets.Where(x => isMatch(x)).ToList();
 
             Console.WriteLine("Total Secrets: {0}", allSecrets.Count);
@@ -598,7 +603,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             return results;
         }
 
-        public async Task<List<SecretInfo>> GetAllSecretsAsync(bool includeCertificates)
+        public async Task<List<SecretInfo>> GetAllSecretsAsync(bool includeCertificates, bool showSecretValue)
         {
             List<SecretItem> results = new List<SecretItem>();
 
@@ -624,6 +629,18 @@ namespace Mooncake.Cdn.CredentialManagementTool
             if (!includeCertificates)
             {
                 allSecrets = allSecrets.Where(x => !x.IsCertificate()).ToList();
+            }
+
+            if (showSecretValue)
+            {
+                List<SecretInfo> allSecretsWithValues = new List<SecretInfo>();
+                foreach (var secret in allSecrets)
+                {
+                    var item = await this.GetSecretItemAsync(secret.Name).ConfigureAwait(false);
+                    allSecretsWithValues.Add(item);
+                }
+
+                allSecrets = allSecretsWithValues;
             }
 
             return allSecrets;

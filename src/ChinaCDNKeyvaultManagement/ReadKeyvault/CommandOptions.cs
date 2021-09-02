@@ -74,5 +74,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         [Option("value", Required = false, HelpText = "Secret value")]
         public string Value { get; set; }
+
+        [Option("showsecret", Required = false, HelpText = "True to show secret value")]
+        public bool GetSecretValue { get; set; }
     }
 }
