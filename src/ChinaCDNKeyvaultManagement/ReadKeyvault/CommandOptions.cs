@@ -36,6 +36,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                                        "\r\nmccdn-prodv2-holder" +
                                        "\r\nmccdndeployprodv2-cme" +
                                        "\r\nmccdndeployprod-cme" +
+                                       "\r\nmccdndeploytest-cme" +
                                        "\r\nmccdnintkvn2";
 
         const string operationsString = "\r\nlist" + 
