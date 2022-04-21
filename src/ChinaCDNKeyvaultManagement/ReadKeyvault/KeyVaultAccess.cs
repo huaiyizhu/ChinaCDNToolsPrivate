@@ -18,6 +18,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         public string Name { get; set; }
 
+        public string Version { get; set; }
+
         public string Value { get; set; }
 
         public bool? Enabled { get; set; }
@@ -32,12 +34,12 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         public override string ToString()
         {
-            return $"Name: {Name}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+            return $"Name: {Name}, Version: {Version}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
         }
 
         public string ToStringWithSecretValue()
         {
-            return $"Name: {Name}, Value: {Value}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+            return $"Name: {Name}, Version: {Version}, Value: {Value}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
         }
     }
     public class CertificateInfo : SecretInfo
@@ -48,7 +50,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         public override string ToString()
         {
-            return $"Name: {Name}, Thumbprint: {Thumbprint}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
+            return $"Name: {Name}, Version: {Version}, Thumbprint: {Thumbprint}, ContentType: {ContentType}, NotBefore: {NotBefore}, Expires: {Expires}, Enabled: {Enabled}, Tags: {string.Join(";", Tags.Select(x => $"{x.Key}:{x.Value}"))}";
         }
     }
 
@@ -81,6 +83,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Expires = secret.Attributes.Expires,
                 NotBefore = secret.Attributes.NotBefore,
                 Value = secret.Value,
+                Version = secret.SecretIdentifier.Version,
                 Tags = secret.Tags != null ? new Dictionary<string, string>(secret.Tags) : new Dictionary<string, string>(),
             };
 
@@ -102,6 +105,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Enabled = secret.Attributes.Enabled,
                 Expires = secret.Attributes.Expires,
                 NotBefore = secret.Attributes.NotBefore,
+                Version = secret.Identifier.Version,
                 Value = null,
                 Tags = secret.Tags != null ? new Dictionary<string, string>(secret.Tags) : new Dictionary<string, string>(),
             };
@@ -122,6 +126,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Id = secret.Id,
                 ContentType = secret.ContentType,
                 Name = secret.SecretIdentifier.Name,
+                Version = secret.SecretIdentifier.Version,
                 Enabled = secret.Attributes.Enabled,
                 Expires = secret.Attributes.Expires,
                 NotBefore = secret.Attributes.NotBefore,
@@ -147,6 +152,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Id = secret.Id,
                 ContentType = secret.ContentType,
                 Name = secret.Name,
+                Version = secret.Version,
                 Enabled = secret.Enabled,
                 Expires = secret.Expires,
                 NotBefore = secret.NotBefore,
@@ -170,6 +176,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             {
                 Id = cert.Id,
                 Name = cert.KeyIdentifier.Name,
+                Version = cert.SecretIdentifier.Version,
                 Enabled = cert.Attributes.Enabled,
                 Certificate = new X509Certificate2(cert.Cer),
                 ContentType = cert.ContentType,
@@ -192,6 +199,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             {
                 Id = cert.Id,
                 Name = cert.Identifier.Name,
+                Version = cert.Identifier.Version,
                 Enabled = cert.Attributes.Enabled,
                 Certificate = null,
                 //ContentType = ,
@@ -252,12 +260,13 @@ namespace Mooncake.Cdn.CredentialManagementTool
             GC.SuppressFinalize(this);
         }
 
-        public async Task<SecretInfo> GetSecretItemAsync(string name)
+        public async Task<SecretInfo> GetSecretItemAsync(string name, string version)
         {
             try
             {
-                var bundle = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name)
-                                 .ConfigureAwait(false);
+                var bundle = string.IsNullOrEmpty(version) ?
+                    await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name).ConfigureAwait(false) :
+                    await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name, version).ConfigureAwait(false);
 
                 var info = bundle.ToSecretInfo();
                 return info;
@@ -280,6 +289,42 @@ namespace Mooncake.Cdn.CredentialManagementTool
             }
         }
 
+        public async Task<List<SecretInfo>> GetSecretItemWithAllVersionsAsync(string name)
+        {
+            try
+            {
+                var secrets = await this.keyVaultClient.GetSecretVersionsAsync(this.keyvaultUrl, name).ConfigureAwait(false);
+
+                List<SecretInfo> results = new List<SecretInfo>();
+                foreach (var secret in secrets)
+                {
+                    var bundle = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, name, secret.Identifier.Version)
+                                     .ConfigureAwait(false);
+
+                    var info = bundle.ToSecretInfo();
+                    results.Add(info);
+                }
+
+                return results.OrderByDescending(x => x.Expires).ToList();
+            }
+            catch (AdalServiceException)
+            {
+                // authentication cert is not valid
+                throw;
+            }
+            catch (KeyVaultErrorException ex)
+            {
+                if (ex.Body != null &&
+                    ex.Body.Error != null &&
+                    ex.Body.Error.Code == "SecretNotFound")
+                {
+                    return new List<SecretInfo>();
+                }
+
+                throw;
+            }
+        }
+
         /// <summary>
         /// Reads the secret.
         /// </summary>
@@ -287,9 +332,9 @@ namespace Mooncake.Cdn.CredentialManagementTool
         /// <returns>
         /// Secret value
         /// </returns>
-        public async Task<string> GetSecretAsync(string name)
+        public async Task<string> GetSecretAsync(string name, string version)
         {
-            var item = await GetSecretItemAsync(name).ConfigureAwait(false);
+            var item = await GetSecretItemAsync(name, version).ConfigureAwait(false);
             return item.Value;
         }
 
@@ -447,14 +492,18 @@ namespace Mooncake.Cdn.CredentialManagementTool
             }
         }
 
-        public async Task<CertificateInfo> GetExistingCertificateAsync(string certName)
+        public async Task<CertificateInfo> GetExistingCertificateAsync(string certName, string version)
         {
             try
             {
-                var cert = await this.keyVaultClient.GetCertificateAsync(this.keyvaultUrl, certName).ConfigureAwait(false);
+                var cert = string.IsNullOrEmpty(version) ?
+                    await this.keyVaultClient.GetCertificateAsync(this.keyvaultUrl, certName).ConfigureAwait(false) :
+                    await this.keyVaultClient.GetCertificateAsync(this.keyvaultUrl, certName, version).ConfigureAwait(false);
                 if (cert != null)
                 {
-                    return (await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, certName).ConfigureAwait(false)).ToCertificateInfo();
+                    return string.IsNullOrEmpty(version) ?
+                    (await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, certName).ConfigureAwait(false)).ToCertificateInfo() :
+                    (await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, certName, version).ConfigureAwait(false)).ToCertificateInfo();
                 }
 
                 return null;
@@ -465,6 +514,37 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     return null;
+                }
+                else
+                {
+                    throw;
+                }
+            }
+        }
+
+        public async Task<List<CertificateInfo>> GetExistingCertificateWithAllVersionsAsync(string certName)
+        {
+            try
+            {
+                var certVersions = await this.keyVaultClient.GetCertificateVersionsAsync(this.keyvaultUrl, certName).ConfigureAwait(false);
+
+                List<CertificateInfo> certs = new List<CertificateInfo>();
+                foreach (var certVersion in certVersions)
+                {
+
+                    string secretVersion = certVersion.Identifier.Version;
+                    var cert = (await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, certName, secretVersion).ConfigureAwait(false)).ToCertificateInfo();
+                    certs.Add(cert);
+                }
+
+                return certs.OrderByDescending(x => x.Expires).ToList();
+            }
+            catch (KeyVaultErrorException ex)
+            {
+                if (ex.Response != null &&
+                    ex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    return new List<CertificateInfo>();
                 }
                 else
                 {
@@ -507,7 +587,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         public async Task ImportCertificateAsync(CertificateInfo cert, bool overwriteExisting = false)
         {
-            var existingCert = (await this.GetSecretItemAsync(cert.Name).ConfigureAwait(false)).ToCertificateInfo();
+            var existingCert = (await this.GetSecretItemAsync(cert.Name, null).ConfigureAwait(false)).ToCertificateInfo();
             bool doImport = false;
 
             if (existingCert != null)
@@ -535,7 +615,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
         {
             foreach (var cert in certificates)
             {
-                CertificateInfo existingCert = await this.GetExistingCertificateAsync(cert.Name).ConfigureAwait(false);
+                CertificateInfo existingCert = await this.GetExistingCertificateAsync(cert.Name, null).ConfigureAwait(false);
                 bool doImport = false;
 
                 if (existingCert != null)
@@ -636,7 +716,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 List<SecretInfo> allSecretsWithValues = new List<SecretInfo>();
                 foreach (var secret in allSecrets)
                 {
-                    var item = await this.GetSecretItemAsync(secret.Name).ConfigureAwait(false);
+                    var item = await this.GetSecretItemAsync(secret.Name, null).ConfigureAwait(false);
                     allSecretsWithValues.Add(item);
                 }
 

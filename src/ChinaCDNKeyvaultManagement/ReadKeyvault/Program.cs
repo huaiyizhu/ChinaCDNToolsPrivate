@@ -83,19 +83,22 @@ namespace Mooncake.Cdn.CredentialManagementTool
                         await program.ProcessListAction(command).ConfigureAwait(false);
                         break;
                     case OperationType.sync:
-                        await program.ProcessSyncAction(command).ConfigureAwait(false); ;
+                        await program.ProcessSyncAction(command).ConfigureAwait(false);
                         break;
                     case OperationType.get:
-                        await program.ProcessGetAction(command).ConfigureAwait(false); ;
+                        await program.ProcessGetAction(command).ConfigureAwait(false);
                         break;
+                    case OperationType.getallversions:
+                        await program.ProcessGetAllVersionsAction(command).ConfigureAwait(false);
+                        break;                            
                     case OperationType.add:
-                        await program.ProcessAddAction(command).ConfigureAwait(false); ;
+                        await program.ProcessAddAction(command).ConfigureAwait(false);
                         break;
                     case OperationType.delete:
-                        await program.ProcessDeleteAction(command).ConfigureAwait(false); ;
+                        await program.ProcessDeleteAction(command).ConfigureAwait(false);
                         break;
                     case OperationType.update:
-                        await program.ProcessUpdateAction(command).ConfigureAwait(false); ;
+                        await program.ProcessUpdateAction(command).ConfigureAwait(false);
                         break;
                     default:
                         throw new ArgumentException($"Unknown operation {command.Operation}");
@@ -196,7 +199,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             Requires.Argument("dstkv", command.DstKeyVault).NotNullOrEmpty();
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
 
-            Console.WriteLine($"Begin to sync {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}' to dest key vaule '{command.DstKeyVault}'. Override if exist: {command.OverrideIfExist}");
+            Console.WriteLine($"Begin to sync {command.Target} '{command.TargetName}' with version '{command.CredentialVersion}' from source key vault '{command.SrcKeyVault}' to dest key vaule '{command.DstKeyVault}'. Override if exist: {command.OverrideIfExist}");
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultSettingInfo dstKVInfo = GetPredefinedKeyVaults(command.DstKeyVault);
@@ -207,6 +210,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     srcKVInfo,
                     dstKVInfo,
                     command.TargetName,
+                    command.CredentialVersion,
                     command.OverrideIfExist).ConfigureAwait(false);
             }
             else
@@ -215,6 +219,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     srcKVInfo,
                     dstKVInfo,
                     command.TargetName,
+                    command.CredentialVersion,
                     command.OverrideIfExist).ConfigureAwait(false);
             }
         }
@@ -223,15 +228,15 @@ namespace Mooncake.Cdn.CredentialManagementTool
         {
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
 
-            Console.WriteLine($"Begin to find {command.Target} '{command.TargetName}' under key vault '{command.SrcKeyVault}', show secret value: {command.GetSecretValue}");
+            Console.WriteLine($"Begin to find {command.Target} '{command.TargetName}' with version '{command.CredentialVersion}' under key vault '{command.SrcKeyVault}', show secret value: {command.GetSecretValue}");
             KeyVaultSettingInfo srcKV = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKV);
             if (command.Target == OperationTarget.certificate)
             {
-                var cert = await kv.GetExistingCertificateAsync(command.TargetName).ConfigureAwait(false);
+                var cert = await kv.GetExistingCertificateAsync(command.TargetName, command.CredentialVersion).ConfigureAwait(false);
                 if (cert == null)
                 {
-                    Console.WriteLine($"Cannot find certificate '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+                    Console.WriteLine($"Cannot find certificate '{command.TargetName}' with version '{command.CredentialVersion}' under key vault '{command.SrcKeyVault}'");
                 }
                 else
                 {
@@ -240,15 +245,57 @@ namespace Mooncake.Cdn.CredentialManagementTool
             }
             else
             {
-                var secret = await kv.GetSecretItemAsync(command.TargetName).ConfigureAwait(false);
+                var secret = await kv.GetSecretItemAsync(command.TargetName, command.CredentialVersion).ConfigureAwait(false);
                 if (secret == null)
                 {
-                    Console.WriteLine($"Cannot find secret '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+                    Console.WriteLine($"Cannot find secret '{command.TargetName}' with version '{command.CredentialVersion}' under key vault '{command.SrcKeyVault}'");
                 }
                 else
                 {
                     string result = command.GetSecretValue ? secret.ToStringWithSecretValue() : secret.ToString();
                     Console.WriteLine($"Secret is {result}");
+                }
+            }
+        }
+
+        private async Task ProcessGetAllVersionsAction(CommandOptions command)
+        {
+            Requires.Argument("name", command.TargetName).NotNullOrEmpty();
+
+            Console.WriteLine($"Begin to find {command.Target} '{command.TargetName}' with all versions under key vault '{command.SrcKeyVault}', show secret value: {command.GetSecretValue}");
+            KeyVaultSettingInfo srcKV = GetPredefinedKeyVaults(command.SrcKeyVault);
+            KeyVaultAccess kv = new KeyVaultAccess(srcKV);
+            if (command.Target == OperationTarget.certificate)
+            {
+                var certs = await kv.GetExistingCertificateWithAllVersionsAsync(command.TargetName).ConfigureAwait(false);
+                if (!certs.Any())
+                {
+                    Console.WriteLine($"Cannot find certificate '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+                }
+                else
+                {
+                    Console.WriteLine($"Certificate with {certs.Count()} versions:");
+                    foreach (var cert in certs)
+                    {
+                        Console.WriteLine($"{cert}");
+                    }   
+                }
+            }
+            else
+            {
+                var secrets = await kv.GetSecretItemWithAllVersionsAsync(command.TargetName).ConfigureAwait(false);
+                if (!secrets.Any())
+                {
+                    Console.WriteLine($"Cannot find secret '{command.TargetName}' under key vault '{command.SrcKeyVault}'");
+                }
+                else
+                {
+                    Console.WriteLine($"Secret with {secrets.Count()} versions:");
+                    foreach (var secret in secrets)
+                    {
+                        string result = command.GetSecretValue ? secret.ToStringWithSecretValue() : secret.ToString();
+                        Console.WriteLine($"{secret}");
+                    }
                 }
             }
         }
@@ -371,13 +418,13 @@ namespace Mooncake.Cdn.CredentialManagementTool
             return !Guid.TryParse(name, out guid);
         }
 
-        private static async Task CopySecretAsync(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string secretName, bool overwriteExisting = false)
+        private static async Task CopySecretAsync(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string secretName, string srcVersion, bool overwriteExisting = false)
         {
             KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
-            var secretItem = await srckv.GetSecretItemAsync(secretName).ConfigureAwait(false);
+            var secretItem = await srckv.GetSecretItemAsync(secretName, srcVersion).ConfigureAwait(false);
             if (secretItem == null)
             {
-                throw new ArgumentException($"Cannot get secret '{secretName}' in source key vault '{srcKvInfo.Url}'");
+                throw new ArgumentException($"Cannot get secret '{secretName}' with version '{srcVersion}' in source key vault '{srcKvInfo.Url}'");
             }
 
             KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
@@ -393,14 +440,14 @@ namespace Mooncake.Cdn.CredentialManagementTool
             await kv.DisableAllCertificatesAsync(predict).ConfigureAwait(false);
         }
 
-        private static async Task CopyCertificate(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string name, bool overwriteExisting = false)
+        private static async Task CopyCertificate(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string name, string srcVersion, bool overwriteExisting = false)
         {
             KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
-            var cert = await srckv.GetExistingCertificateAsync(name).ConfigureAwait(false);
+            var cert = await srckv.GetExistingCertificateAsync(name, srcVersion).ConfigureAwait(false);
 
             if (cert == null)
             {
-                throw new KeyNotFoundException($"Cannot find certificate {name} from source key vault {srcKvInfo.Url}");
+                throw new KeyNotFoundException($"Cannot find certificate {name} with version '{srcVersion}' from source key vault {srcKvInfo.Url}");
             }
 
             KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
@@ -412,7 +459,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             var kvInfo = GetPredefinedKeyVaults("mccdn-prodsecrets-holder");
 
             KeyVaultAccess kv = new KeyVaultAccess(kvInfo);
-            var secret = kv.GetSecretAsync("CertificateRepositoryKeyVaultClientSecret").GetAwaiter().GetResult();
+            var secret = kv.GetSecretAsync("CertificateRepositoryKeyVaultClientSecret", null).GetAwaiter().GetResult();
             return secret;
         }
 

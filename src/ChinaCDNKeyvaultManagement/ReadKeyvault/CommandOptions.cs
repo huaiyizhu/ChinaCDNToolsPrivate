@@ -13,6 +13,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         get,
 
+        getallversions,
+
         add,
 
         update,
@@ -41,6 +43,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         const string operationsString = "\r\nlist" + 
                                         "\r\nget" +
+                                        "\r\ngetallversions" +
                                         "\r\nadd" +
                                         "\r\nupdate" +
                                         "\r\ndelete" +
@@ -78,5 +81,11 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         [Option("showsecret", Required = false, HelpText = "True to show secret value")]
         public bool GetSecretValue { get; set; }
+
+        [Option(
+            "credentialversion",
+            Required = false,
+            HelpText = "Specify the credential version in key vault. Use the latest version if this value is empty")]
+        public string CredentialVersion { get; set; }
     }
 }
