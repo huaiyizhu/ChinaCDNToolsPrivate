@@ -375,10 +375,12 @@ namespace Mooncake.Cdn.CredentialManagementTool
             Console.WriteLine("Completed");
         }
 
-        internal async Task UpdateSecretExpirationDateAsync(string secretName, DateTimeOffset expireDate)
+        internal async Task UpdateSecretExpirationDateAsync(string secretName, string secretVersion, DateTimeOffset expireDate)
         {
-            Console.Write("Updating secret {0}, expire date {1} ...", secretName, expireDate);
-            var secret = await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secretName).ConfigureAwait(false);
+            Console.Write($"Updating secret {secretName} expire date {expireDate} with version '{secretVersion}'...");
+            var secret = string.IsNullOrWhiteSpace(secretVersion) ?
+                                await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secretName).ConfigureAwait(false) :
+                                await this.keyVaultClient.GetSecretAsync(this.keyvaultUrl, secretName, secretVersion).ConfigureAwait(false);
             SecretAttributes attr = new SecretAttributes()
             {
                 Expires = expireDate.UtcDateTime,

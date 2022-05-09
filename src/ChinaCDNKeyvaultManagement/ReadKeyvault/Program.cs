@@ -132,12 +132,12 @@ namespace Mooncake.Cdn.CredentialManagementTool
             Requires.Argument("expired", command.ExpiredDate).NotNull();
             Requires.Argument("target", command.Target).PassPredication(x => x == OperationTarget.secret, "only secret type is supported");
 
-            Console.WriteLine($"Begin to update for {command.Target} '{command.TargetName}' from source key vault '{command.SrcKeyVault}', new expired date {command.ExpiredDate}...");
+            Console.WriteLine($"Begin to update for {command.Target} '{command.TargetName}' with version '{command.CredentialVersion}' from source key vault '{command.SrcKeyVault}', new expired date {command.ExpiredDate}...");
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
 
-            await kv.UpdateSecretExpirationDateAsync(command.TargetName, command.ExpiredDate.Value).ConfigureAwait(false);
+            await kv.UpdateSecretExpirationDateAsync(command.TargetName, command.CredentialVersion, command.ExpiredDate.Value).ConfigureAwait(false);
         }
 
         private async Task ProcessDeleteAction(CommandOptions command)
@@ -294,7 +294,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     foreach (var secret in secrets)
                     {
                         string result = command.GetSecretValue ? secret.ToStringWithSecretValue() : secret.ToString();
-                        Console.WriteLine($"{secret}");
+                        Console.WriteLine($"{result}");
                     }
                 }
             }
@@ -327,7 +327,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 KeyVaultAccess kvAccess = new KeyVaultAccess(kvInfo);
                 foreach (var secret in keyvault)
                 {
-                    await kvAccess.UpdateSecretExpirationDateAsync(secret.ItemName, secret.ExpiredDate).ConfigureAwait(false);
+                    await kvAccess.UpdateSecretExpirationDateAsync(secret.ItemName, null, secret.ExpiredDate).ConfigureAwait(false);
                 }
 
                 Console.WriteLine("[End] Completed update secrets' expiration date in keyvault {0}, total secrets {1}...", keyvault.Key, keyvault.Count());
