@@ -222,17 +222,18 @@ namespace Mooncake.Cdn.CredentialManagementTool
         string keyvaultUrl,
         string clientId,
         string certThumbprint,
+        string certName,
         bool useSecret,
         Func<string> secret)
         {
-            this.Init(keyvaultUrl, clientId, certThumbprint, useSecret, secret);
+            this.Init(keyvaultUrl, clientId, certThumbprint, certName, useSecret, secret);
         }
 
         public KeyVaultAccess(
             string keyvaultUrl,
             AADSettingInfo aadInfo)
         {
-            this.Init(keyvaultUrl, aadInfo.ClientId, aadInfo.CertificateThumbprint, aadInfo.UseSecret, aadInfo.SecretRetriever);
+            this.Init(keyvaultUrl, aadInfo.ClientId, aadInfo.CertificateThumbprint, aadInfo.CertificateName, aadInfo.UseSecret, aadInfo.SecretRetriever);
         }
 
         public KeyVaultAccess(KeyVaultSettingInfo kvInfo)
@@ -798,13 +799,13 @@ namespace Mooncake.Cdn.CredentialManagementTool
             return client;
         }
 
-        private KeyVaultClient InitWithCert(string vaultaddr, string authClientId, string authThumbprint)
+        private KeyVaultClient InitWithCertThrumbprint(string vaultaddr, string authClientId, string authThumbprint)
         {
             X509Certificate2 cert = this.FindCertificateByThumbprint(authThumbprint);
 
             if (cert == null)
             {
-                throw new ArgumentException(string.Format("Cannot find Certificate by thumbprint \"{0}\" to Access KeyVault \"{1}\"", authThumbprint, vaultaddr));
+                throw new ArgumentException(string.Format("Cannot find Certificate by thumbprint \"{0}\" to Access KeyVault \"{1}\" with AAD app ID {2}", authThumbprint, vaultaddr, authClientId));
             }
 
             ClientAssertionCertificate assertionCert = new ClientAssertionCertificate(authClientId, cert);
@@ -813,6 +814,38 @@ namespace Mooncake.Cdn.CredentialManagementTool
                                        (authority, resource, scope)
                                            => GetAccessTokenWithCertAsync(authority, resource, scope, assertionCert)));
             return client;
+        }
+
+        private KeyVaultClient InitWithCertName(string vaultaddr, string authClientId, string certName)
+        {
+            X509Certificate2[] certs = this.FindValidCertificatesByName(certName);
+
+            if (certs == null || certs.Length == 0)
+            {
+                throw new ArgumentException(string.Format("Cannot find Certificate by certificate name \"{0}\" to Access KeyVault \"{1}\" with AAD App ID {2}", certName, vaultaddr, authClientId));
+            }
+
+            foreach (X509Certificate2 cert in certs)
+            {
+                ClientAssertionCertificate assertionCert = new ClientAssertionCertificate(authClientId, cert);
+
+                KeyVaultClient client = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(
+                                           (authority, resource, scope)
+                                               => GetAccessTokenWithCertAsync(authority, resource, scope, assertionCert)));
+                return client;
+            }
+
+            return null;
+        }
+
+        private X509Certificate2[] FindValidCertificatesByName(string certName)
+        {
+            if (string.IsNullOrEmpty(certName))
+            {
+                throw new ArgumentNullException("Certificate Name for Accessing KeyVault should not be null");
+            }
+
+            return CertUtils.GetValidCertificatesByName(certName, StoreName.My, StoreLocation.LocalMachine);
         }
 
         private X509Certificate2 FindCertificateByThumbprint(string thumbprint)
@@ -825,7 +858,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             return CertUtils.GetCertificateByThumbprint(thumbprint, StoreName.My, StoreLocation.LocalMachine);
         }
 
-        private void Init(string keyvaultUrl, string aadClientId, string aadAccessCertThumbprint, bool useSecret, Func<string> secretRetriever)
+        private void Init(string keyvaultUrl, string aadClientId, string aadAccessCertThumbprint, string aadAccessCertName, bool useSecret, Func<string> secretRetriever)
         {
             this.keyvaultUrl = keyvaultUrl;
 
@@ -836,12 +869,23 @@ namespace Mooncake.Cdn.CredentialManagementTool
                                             aadClientId,
                                             secretRetriever());
             }
-            else
+            else if (!string.IsNullOrEmpty(aadAccessCertThumbprint))
             {
-                this.keyVaultClient = this.InitWithCert(
+                this.keyVaultClient = this.InitWithCertThrumbprint(
                                             this.keyvaultUrl,
                                             aadClientId,
                                             aadAccessCertThumbprint);
+            }
+            else if (!string.IsNullOrEmpty(aadAccessCertName))
+            {
+                this.keyVaultClient = this.InitWithCertName(
+                                            this.keyvaultUrl,
+                                            aadClientId,
+                                            aadAccessCertName);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Missing certificate name and thumbprint to access key vault {this.keyvaultUrl} for AAD {aadClientId}");
             }
         }
     }
@@ -913,6 +957,22 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 {
                     throw new X509CertificateNotFoundException(thumbprint);
                 }
+            }
+            finally
+            {
+                certStore.Close();
+            }
+        }
+
+        public static X509Certificate2[] GetValidCertificatesByName(string certName, StoreName name, StoreLocation location)
+        {
+            var certStore = new X509Store(name, location);
+            try
+            {
+                certStore.Open(OpenFlags.ReadOnly);
+                var certCollection = certStore.Certificates.Find(X509FindType.FindBySubjectName, certName, true);
+                List<X509Certificate2> certList = new List<X509Certificate2>(certCollection.Cast<X509Certificate2>());
+                return certList.ToArray();
             }
             finally
             {
