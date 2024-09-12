@@ -113,6 +113,9 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     case OperationType.update:
                         await program.ProcessUpdateAction(command).ConfigureAwait(false);
                         break;
+                    case OperationType.download:
+                        await program.ProcessDownloadAction(command).ConfigureAwait(false);
+                        break;
                     default:
                         throw new ArgumentException($"Unknown operation {command.Operation}");
                 }
@@ -235,6 +238,27 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     command.CredentialVersion,
                     command.OverrideIfExist).ConfigureAwait(false);
             }
+        }
+
+        private async Task ProcessDownloadAction(CommandOptions command)
+        {
+            if (command.Target == OperationTarget.secret)
+            {
+                Console.WriteLine($"Download secret to file is not supported. Please get the secret value by using '--showsecret' parameter");
+                return;
+            }
+
+            Requires.Argument("name", command.TargetName).NotNullOrEmpty();
+
+            Console.WriteLine($"Begin to download {command.Target} '{command.TargetName}' with version '{command.CredentialVersion}' from source key vault '{command.SrcKeyVault}'.");
+
+            KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
+
+            await DownloadCertificate(
+                srcKVInfo,
+                command.TargetName,
+                command.CredentialVersion,
+                command.OverrideIfExist).ConfigureAwait(false);
         }
 
         private async Task ProcessGetAction(CommandOptions command)
@@ -465,6 +489,42 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
             KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
             await dstkv.ImportCertificateAsync(cert, overwriteExisting).ConfigureAwait(false);
+        }
+
+        private static async Task DownloadCertificate(KeyVaultSettingInfo srcKvInfo, string name, string srcVersion, bool overwriteExisting = false)
+        {
+            KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
+            var cert = await srckv.GetExistingCertificateAsync(name, srcVersion).ConfigureAwait(false);
+
+            if (cert == null)
+            {
+                throw new KeyNotFoundException($"Cannot find certificate {name} with version '{srcVersion}' from source key vault {srcKvInfo.Url}");
+            }
+
+            WriteCertificateFile(cert, name, overwriteExisting);
+        }
+
+        private static void WriteCertificateFile(CertificateInfo cert, string name, bool overwriteExisting = false)
+        {
+            string filePathName = string.Concat(name, ".pfx");
+            Console.WriteLine("Downloading Certificate to local file {0} with overwrite {1}...", filePathName, overwriteExisting);
+            if (File.Exists(filePathName))
+            {
+                if (overwriteExisting)
+                {
+                    Console.WriteLine("File {0} exist, overwrite the file...", filePathName);
+                }
+                else
+                {
+                    Console.WriteLine("File {0} already exist, stop download.", filePathName);
+                    return;
+                }
+            }
+
+            byte[] rawSecret = Convert.FromBase64String(cert.Value);
+            File.WriteAllBytes(filePathName, rawSecret);
+
+            Console.WriteLine("Downloaded Certificate to local file {0}", filePathName);
         }
 
         private static string KeyvaultReaderSecretRetriever()

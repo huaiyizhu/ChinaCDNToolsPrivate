@@ -22,6 +22,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
         delete,
 
         sync,
+
+        download,
     }
 
     public enum OperationTarget
@@ -47,6 +49,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
         const string operationsString = "\r\nlist" + 
                                         "\r\nget" +
                                         "\r\ngetallversions" +
+                                        "\r\ndownload" +
                                         "\r\nadd" +
                                         "\r\nupdate" +
                                         "\r\ndelete" +
@@ -73,7 +76,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
         [Option('n', "name", Required = false, HelpText = "Operation Target Name")]
         public string TargetName { get; set; }
 
-        [Option("force", Required = false, HelpText = "True to force override existing key vault values")]
+        [Option("force", Required = false, HelpText = "True to force override existing key vault values or files")]
         public bool OverrideIfExist { get; set; }
 
         [Option("expired", Required = false, HelpText = "The expired date to update secret")]
