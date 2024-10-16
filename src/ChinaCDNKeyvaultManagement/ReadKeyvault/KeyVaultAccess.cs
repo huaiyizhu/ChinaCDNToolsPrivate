@@ -56,15 +56,19 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
     public static class CredentialUtilities
     {
-        public static bool IsCertificate(this SecretInfo secret)
+        public static bool IsCertificate(this SecretInfo secret, bool pemAsCert = false)
         {
             if (secret == null)
             {
                 return false;
             }
 
-            return secret.ContentType == CertificateContentType.Pem ||
-                   secret.ContentType == CertificateContentType.Pfx;
+            if (secret.ContentType == CertificateContentType.Pfx)
+            {
+                return true;
+            }
+
+            return pemAsCert ? secret.ContentType == CertificateContentType.Pem : false;
         }
 
         public static SecretInfo ToSecretInfo(this SecretBundle secret)
@@ -415,11 +419,11 @@ namespace Mooncake.Cdn.CredentialManagementTool
             }
         }
 
-        public async Task ImportSecretsAndCertsAsync(List<SecretInfo> secretsAndCerts, bool overwriteExisting = false)
+        public async Task ImportSecretsAndCertsAsync(List<SecretInfo> secretsAndCerts, bool overwriteExisting = false, bool pemAsCert = false)
         {
             foreach (var info in secretsAndCerts)
             {
-                bool isCertificate = info.ContentType == CertificateContentType.Pem;
+                bool isCertificate = pemAsCert ? info.ContentType == CertificateContentType.Pem : false;
 
                 try
                 {
