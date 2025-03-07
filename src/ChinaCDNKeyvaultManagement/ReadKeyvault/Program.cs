@@ -543,8 +543,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
             .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployProdByCertApp2", "000be46d-6e2e-4ab9-b6f4-996e4d1e834d", null, "config.keyvault.access.cdn.azure.cn")
             .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCCSDeployProdCMEByCertApp3", "9a1a38f5-a221-4d21-9f3b-7655665f33fa", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
             .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployTestCMEByCertApp", "d4837427-d2f6-45b7-a7b7-6402387e46b8", "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
-            .AddAADSettingInfo(KeyVaultEnvironment.Global, "AFDCloudTestApp", "4af5dd89-61cc-483a-b93d-9c25ce954818", null, "config.keyvault.access.cdn.azure.cn")
-            .AddAADSettingInfo(KeyVaultEnvironment.China, "mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, "config.keyvault.access.cdn.azure.cn");
+            .AddAADSettingInfo(KeyVaultEnvironment.Global, "AFDCloudTestApp", "4af5dd89-61cc-483a-b93d-9c25ce954818", null, "config.keyvault.access.cdn.azure.cn");
+            //.AddAADSettingInfo(KeyVaultEnvironment.China, "mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, "config.keyvault.access.cdn.azure.cn");
 
         private static readonly Dictionary<string, KeyVaultSettingInfo> predefinedKeyVaults = new Dictionary<string, KeyVaultSettingInfo>()
             .AddKeyVault("mccdnintkvn2", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
@@ -557,7 +557,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             .AddKeyVault("mccdnprod", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             .AddKeyVault("sfmccdnprodkv", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             //            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
-            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["mccdn-keyvault-reader"])
+            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdndeploytest-cme", PredefinedAADInfo["KeyVaultMcCdnDeployTestCMEByCertApp"])
             .AddKeyVault("mccdndeploytest", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-prodsecrets-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
@@ -566,7 +566,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             .AddKeyVault("mccdnintkveast2", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-prodv2-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             //            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
-            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["mccdn-keyvault-reader"])
+            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdncoreconfig", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdn-vscode", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-nuget", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
