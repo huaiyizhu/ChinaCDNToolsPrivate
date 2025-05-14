@@ -567,6 +567,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             .AddKeyVault("mccdn-prodv2-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             //            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+            .AddKeyVault("mccdnafdoutbox", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdncoreconfig", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
             .AddKeyVault("mccdn-vscode", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-nuget", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])

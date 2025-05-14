@@ -44,7 +44,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
                                        "\r\nmccdnintkvn2" +
                                        "\r\ncdnbillingkvprod" +
                                        "\r\nmccdnbillingkvtest" +
-                                       "\r\nmccdncloudtest";
+                                       "\r\nmccdncloudtest" +
+                                       "\r\nmccdnafdoutbox";
 
         const string operationsString = "\r\nlist" + 
                                         "\r\nget" +
