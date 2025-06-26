@@ -108,6 +108,7 @@
     <Compile Include="ArgumentValidations\ValidatedNotNullAttribute.cs" />
     <Compile Include="CommandOptions.cs" />
     <Compile Include="KeyVaultAccess.cs" />
+    <Compile Include="KeyVaultAccessV2.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

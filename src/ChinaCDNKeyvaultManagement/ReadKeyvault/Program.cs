@@ -162,9 +162,18 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         private async Task ProcessListAction(CommandOptions command)
         {
-            Console.WriteLine($"Begin to list all {command.Target} of source key vault '{command.SrcKeyVault}', show secret value {command.GetSecretValue}...");
+            Console.WriteLine($"Begin to list v2 all {command.Target} of source key vault '{command.SrcKeyVault}', show secret value {command.GetSecretValue}...");
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
-            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+
+            KeyVaultAccessV2 kvv2 = new KeyVaultAccessV2(srcKVInfo);
+            List<SecretInfo> secrets = await kvv2.ListSecretsAsync().ConfigureAwait(false);
+
+            Console.WriteLine($"Total secrets: {secrets.Count}");
+            foreach (var secret in secrets)
+            {
+                Console.WriteLine($"  {secret}");
+            }
+            /*
             if (command.Target == OperationTarget.certificate)
             {
                 var certificates = await kv.GetAllCertificatesAsync().ConfigureAwait(false);
@@ -184,6 +193,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     Console.WriteLine($"  {result}");
                 }
             }
+            */
         }
 
         private async Task ProcessSyncAction(CommandOptions command)

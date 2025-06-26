@@ -973,7 +973,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             try
             {
                 certStore.Open(OpenFlags.ReadOnly);
-                var certCollection = certStore.Certificates.Find(X509FindType.FindBySubjectName, certName, true);
+                var certCollection = certStore.Certificates.Find(X509FindType.FindBySubjectName, certName, false);
                 List<X509Certificate2> certList = new List<X509Certificate2>(certCollection.Cast<X509Certificate2>());
                 return certList.ToArray();
             }
