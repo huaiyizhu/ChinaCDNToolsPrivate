@@ -10,46 +10,6 @@ using Microsoft.Cloud.MooncakeService.Common;
 
 namespace Mooncake.Cdn.CredentialManagementTool
 {
-    public enum KeyVaultEnvironment
-    {
-        China,
-        Global,
-    }
-
-    public class AADSettingInfo
-    {
-        public const string KeyvaultSuffixChina = "vault.azure.cn";
-        public const string KeyvaultSuffixGlobal = "vault.azure.net";
-
-        public string Name { get; set; }
-        public string ClientId { get; set; }
-        public string CertificateThumbprint { get; set; }
-
-        public string CertificateName { get; set; }
-
-        public KeyVaultEnvironment Environment { get; set; }
-
-        public string KeyvaultSuffix => Environment == KeyVaultEnvironment.China ? KeyvaultSuffixChina : KeyvaultSuffixGlobal;
-
-        public bool UseSecret { get; set; }
-
-        public Func<string> SecretRetriever { get; set; }
-    }
-
-    public class KeyVaultSettingInfo
-    {
-        public string Url { get; set; }
-        //public string ClientId { get; set; }
-        //public string CertificateThumbprint { get; set; }
-
-        public AADSettingInfo AADInfo { get; set; }
-
-        public override string ToString()
-        {
-            return this.Url;
-        }
-    }
-
     class Program
     {
         static void Main(string[] args)
@@ -129,16 +89,32 @@ namespace Mooncake.Cdn.CredentialManagementTool
         private async Task ProcessAddAction(CommandOptions command)
         {
             Requires.Argument("name", command.TargetName).NotNullOrEmpty();
-            Requires.Argument("value", command.Value).NotNullOrEmpty();
+//            Requires.Argument("value", command.Value).NotNullOrEmpty();
             Requires.Argument("expired", command.ExpiredDate).NotNull();
             Requires.Argument("target", command.Target).PassPredication(x => x == OperationTarget.secret, "only secret type is supported");
 
-            Console.WriteLine($"Begin to add {command.Target} '{command.TargetName}' for source key vault '{command.SrcKeyVault}', value: {command.Value}, expired date {command.ExpiredDate}, overwrite existing: {command.OverrideIfExist}...");
+            Console.WriteLine($"Begin to add {command.Target} '{command.TargetName}' for source key vault '{command.SrcKeyVault}', value: {command.Value}, value from file: {command.ValueFile}, expired date {command.ExpiredDate}, overwrite existing: {command.OverrideIfExist}...");
+
+            if (string.IsNullOrEmpty(command.Value) && string.IsNullOrEmpty(command.ValueFile))
+            {
+                throw new ArgumentException("Secret value or file for secret value should be provided for adding secret");
+            }
+
+            string finalValue = command.Value;
+            if (string.IsNullOrEmpty(finalValue))
+            {
+                finalValue = File.ReadAllText(command.ValueFile, System.Text.Encoding.UTF8);
+            }
+
+            if (string.IsNullOrEmpty(finalValue))
+            {
+                throw new ArgumentException("Non empty secret value must be provided or read from a file.");
+            }
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
             KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
 
-            await kv.WriteSecretAsync(command.TargetName, command.Value, command.ExpiredDate.Value, command.OverrideIfExist).ConfigureAwait(false);
+            await kv.WriteSecretAsync(command.TargetName, finalValue, command.ExpiredDate.Value, command.OverrideIfExist).ConfigureAwait(false);
 
         }
 
@@ -537,13 +513,14 @@ namespace Mooncake.Cdn.CredentialManagementTool
         }
 
         private static readonly Dictionary<string, AADSettingInfo> PredefinedAADInfo = new Dictionary<string, AADSettingInfo>()
-            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployProdCMEByCertApp3", "acd70671-bc7d-450d-8cc3-02c1f98d0561", null, "config.keyvault.access.cdn.azure.cn")
-            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployTestByCertApp", "e5853e7a-fb1d-439d-ac66-ca22b1054fc4", "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
-            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployProdCMEByCertApp2", "5c83117e-eb3b-40c2-9afc-545893059b36", null, "config.keyvault.access.cdn.azure.cn")
-            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployProdByCertApp2", "000be46d-6e2e-4ab9-b6f4-996e4d1e834d", null, "config.keyvault.access.cdn.azure.cn")
-            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCCSDeployProdCMEByCertApp3", "9a1a38f5-a221-4d21-9f3b-7655665f33fa", "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
-            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployTestCMEByCertApp", "d4837427-d2f6-45b7-a7b7-6402387e46b8", "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
-            .AddAADSettingInfo(KeyVaultEnvironment.Global, "AFDCloudTestApp", "4af5dd89-61cc-483a-b93d-9c25ce954818", null, "config.keyvault.access.cdn.azure.cn");
+            .AddAADSettingInfo(KeyVaultEnvironment.China, "ChinaCDNCredentialKeyVaultAccess.Prod", "3344f555-f11c-4ac8-ba24-426edf324904", AADAuthType.SNICertificate, "keyvault.prod.access.chinacdn.azclient.ms")
+            .AddAADSettingInfo(KeyVaultEnvironment.China, "ChinaCDNCredentialKeyVaultAccess.Int", "5230d07e-253b-47f4-82b7-9ccc750f7de3", AADAuthType.SNICertificate, "keyvault.int.access.chinacdn.azclient-int.ms")
+            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployTestByCertApp", "e5853e7a-fb1d-439d-ac66-ca22b1054fc4", AADAuthType.CertificateThumbprint, "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
+            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployProdCMEByCertApp2", "5c83117e-eb3b-40c2-9afc-545893059b36", AADAuthType.SNICertificate, "config.keyvault.access.cdn.azure.cn")
+            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployProdByCertApp2", "000be46d-6e2e-4ab9-b6f4-996e4d1e834d", AADAuthType.SNICertificate, "config.keyvault.access.cdn.azure.cn")
+            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCCSDeployProdCMEByCertApp3", "9a1a38f5-a221-4d21-9f3b-7655665f33fa", AADAuthType.CertificateThumbprint, "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
+            .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployTestCMEByCertApp", "d4837427-d2f6-45b7-a7b7-6402387e46b8", AADAuthType.CertificateThumbprint, "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
+            .AddAADSettingInfo(KeyVaultEnvironment.Global, "AFDCloudTestApp", "4af5dd89-61cc-483a-b93d-9c25ce954818", AADAuthType.SNICertificate, "config.keyvault.access.cdn.azure.cn");
             //.AddAADSettingInfo(KeyVaultEnvironment.China, "mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, "config.keyvault.access.cdn.azure.cn");
 
         private static readonly Dictionary<string, KeyVaultSettingInfo> predefinedKeyVaults = new Dictionary<string, KeyVaultSettingInfo>()
@@ -556,19 +533,17 @@ namespace Mooncake.Cdn.CredentialManagementTool
             .AddKeyVault("mccdnkeyvault", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             .AddKeyVault("mccdnprod", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             .AddKeyVault("sfmccdnprodkv", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
-            //            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
-            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+            .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Prod"])
             .AddKeyVault("mccdndeploytest-cme", PredefinedAADInfo["KeyVaultMcCdnDeployTestCMEByCertApp"])
             .AddKeyVault("mccdndeploytest", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-prodsecrets-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("cert-holder-del-2020-07", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
-            .AddKeyVault("mccdnarm-provider-prod01", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+            .AddKeyVault("mccdnarm-provider-prod01", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Prod"])
             .AddKeyVault("mccdnintkveast2", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-prodv2-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
-            //            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
-            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
-            .AddKeyVault("mccdnafdoutbox", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
-            .AddKeyVault("mccdncoreconfig", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp3"])
+            .AddKeyVault("mccdndeployprodv2-cme", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Prod"])
+            .AddKeyVault("mccdnafdoutbox", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Prod"])
+            .AddKeyVault("mccdncoreconfig", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Prod"])
             .AddKeyVault("mccdn-vscode", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-nuget", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-gallery", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
@@ -586,64 +561,5 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
             throw new KeyNotFoundException($"KeyVaultSettingInfo not found with key vault name {kvName}");
         }
-    }
-
-    public static class MyExtension
-    {
-        public static Dictionary<string, AADSettingInfo> AddAADSettingInfo(
-            this Dictionary<string, AADSettingInfo> dict,
-            KeyVaultEnvironment env,
-            string aadName,
-            string clientId,
-            string certThumbrpint,
-            string certName = null,
-            bool useSecret = false,
-            Func<string> secretRetriever = null)
-        {
-            var info = GenerateAADSettingInfo(env, aadName, clientId, certThumbrpint, certName, useSecret, secretRetriever);
-            dict.Add(info.Key, info.Value);
-            return dict;
-        }
-
-        public static Dictionary<string, KeyVaultSettingInfo> AddKeyVault(this Dictionary<string, KeyVaultSettingInfo> dict, string keyvaultName, AADSettingInfo aadInfo)
-        {
-            var info = GenerateKeyVaultSettingInfo(keyvaultName, aadInfo);
-            dict.Add(info.Key, info.Value);
-            return dict;
-        }
-
-        private static KeyValuePair<string, KeyVaultSettingInfo> GenerateKeyVaultSettingInfo(string keyvaultName, AADSettingInfo aadInfo)
-        {
-            return new KeyValuePair<string, KeyVaultSettingInfo>(
-                keyvaultName,
-                new KeyVaultSettingInfo
-                {
-                    Url = $"https://{keyvaultName}.{aadInfo.KeyvaultSuffix}/",
-                    AADInfo = aadInfo,
-                });
-        }
-
-        private static KeyValuePair<string, AADSettingInfo> GenerateAADSettingInfo(
-            KeyVaultEnvironment env,
-            string aadName,
-            string clientId,
-            string certThumbprint,
-            string certName,
-            bool useSecret, Func<string> secretRetriever)
-        {
-            return new KeyValuePair<string, AADSettingInfo>(
-                aadName,
-                new AADSettingInfo
-                {
-                    Name = aadName,
-                    ClientId = clientId,
-                    CertificateThumbprint = certThumbprint,
-                    CertificateName = certName,
-                    Environment = env,
-                    UseSecret = useSecret,
-                    SecretRetriever = secretRetriever,
-                });
-        }
-
     }
 }

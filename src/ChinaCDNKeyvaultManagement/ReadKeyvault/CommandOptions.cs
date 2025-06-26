@@ -86,6 +86,9 @@ namespace Mooncake.Cdn.CredentialManagementTool
         [Option("value", Required = false, HelpText = "Secret value")]
         public string Value { get; set; }
 
+        [Option("valuefromfile", Required = false, HelpText = "Secret value from file. The file should be in UTF-8 encoding.")]
+        public string ValueFile { get; set; }
+
         [Option("showsecret", Required = false, HelpText = "True to show secret value")]
         public bool GetSecretValue { get; set; }
 

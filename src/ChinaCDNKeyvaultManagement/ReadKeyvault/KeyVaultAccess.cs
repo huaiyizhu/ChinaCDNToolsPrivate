@@ -225,19 +225,18 @@ namespace Mooncake.Cdn.CredentialManagementTool
         public KeyVaultAccess(
         string keyvaultUrl,
         string clientId,
-        string certThumbprint,
-        string certName,
-        bool useSecret,
+        AADAuthType authType,
+        string certThumbprintOrName,
         Func<string> secret)
         {
-            this.Init(keyvaultUrl, clientId, certThumbprint, certName, useSecret, secret);
+            this.Init(keyvaultUrl, clientId, authType, certThumbprintOrName, secret);
         }
 
         public KeyVaultAccess(
             string keyvaultUrl,
             AADSettingInfo aadInfo)
         {
-            this.Init(keyvaultUrl, aadInfo.ClientId, aadInfo.CertificateThumbprint, aadInfo.CertificateName, aadInfo.UseSecret, aadInfo.SecretRetriever);
+            this.Init(keyvaultUrl, aadInfo.ClientId, aadInfo.AuthType, aadInfo.CertificateThumbprintOrName, aadInfo.SecretRetriever);
         }
 
         public KeyVaultAccess(KeyVaultSettingInfo kvInfo)
@@ -862,34 +861,34 @@ namespace Mooncake.Cdn.CredentialManagementTool
             return CertUtils.GetCertificateByThumbprint(thumbprint, StoreName.My, StoreLocation.LocalMachine);
         }
 
-        private void Init(string keyvaultUrl, string aadClientId, string aadAccessCertThumbprint, string aadAccessCertName, bool useSecret, Func<string> secretRetriever)
+        private void Init(string keyvaultUrl, string aadClientId, AADAuthType authType, string aadAccessCertThumbprintOrName, Func<string> secretRetriever)
         {
             this.keyvaultUrl = keyvaultUrl;
 
-            if (useSecret)
+            if (authType == AADAuthType.Secret && secretRetriever != null)
             {
                 this.keyVaultClient = this.InitWithSecret(
                                             this.keyvaultUrl,
                                             aadClientId,
                                             secretRetriever());
             }
-            else if (!string.IsNullOrEmpty(aadAccessCertThumbprint))
+            else if (authType == AADAuthType.CertificateThumbprint && !string.IsNullOrEmpty(aadAccessCertThumbprintOrName))
             {
                 this.keyVaultClient = this.InitWithCertThrumbprint(
                                             this.keyvaultUrl,
                                             aadClientId,
-                                            aadAccessCertThumbprint);
+                                            aadAccessCertThumbprintOrName);
             }
-            else if (!string.IsNullOrEmpty(aadAccessCertName))
+            else if (authType == AADAuthType.SNICertificate && !string.IsNullOrEmpty(aadAccessCertThumbprintOrName))
             {
                 this.keyVaultClient = this.InitWithCertName(
                                             this.keyvaultUrl,
                                             aadClientId,
-                                            aadAccessCertName);
+                                            aadAccessCertThumbprintOrName);
             }
             else
             {
-                throw new InvalidOperationException($"Missing certificate name and thumbprint to access key vault {this.keyvaultUrl} for AAD {aadClientId}");
+                throw new InvalidOperationException($"Missing certificate name, thumbprint or secret retriever to access key vault {this.keyvaultUrl} for AAD {aadClientId}");
             }
         }
     }

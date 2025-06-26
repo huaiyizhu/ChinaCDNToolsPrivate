@@ -101,6 +101,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AADSettingInfo.cs" />
     <Compile Include="ArgumentValidations\ArgumentRequirements.cs" />
     <Compile Include="ArgumentValidations\PropertyRequirements.cs" />
     <Compile Include="ArgumentValidations\Requires.cs" />
