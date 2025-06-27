@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.ConstrainedExecution;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Azure.Identity;
+using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Secrets;
 using Microsoft.Cloud.MooncakeService.Common;
 
@@ -14,6 +16,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
     public class KeyVaultAccessV3 : IDisposable
     {
         private SecretClient secretClient;
+        private CertificateClient certificateClient;
         private string keyvaultUrl;
         private bool disposed = false;
 
@@ -34,6 +37,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             };
             var credential = new ClientCertificateCredential(tenantId, clientId, cert, credentialOptions);
             this.secretClient = new SecretClient(new Uri(keyvaultUrl), credential);
+            this.certificateClient = new CertificateClient(new Uri(keyvaultUrl), credential);
         }
 
         private X509Certificate2 FindCertificateByName(string certName)
@@ -63,7 +67,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             await secretClient.SetSecretAsync(name, value);
         }
 
-        public async Task<List<SecretInfo>> GetAllSecretsAsync(bool includeCertificates, bool showSecretValue)
+        public async Task<List<SecretInfo>> GetAllSecretsAsync(bool includeCertificates)
         {
             List<SecretInfo> results = new List<SecretInfo>();
             await foreach (var secretProperties in secretClient.GetPropertiesOfSecretsAsync())
@@ -82,6 +86,21 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 results.Add(secret.ToSecretInfo());
             }
 
+            return results;
+        }
+
+        public async Task<List<CertificateInfo>> GetAllCertificatesAsync()
+        {
+            List<CertificateInfo> results = new List<CertificateInfo>();
+            await foreach (var certProperties in certificateClient.GetPropertiesOfCertificatesAsync())
+            {
+                if (certProperties.Enabled.HasValue && !certProperties.Enabled.Value)
+                {
+                    continue; // Skip disabled certificates
+                }
+                KeyVaultCertificateWithPolicy certWithPolicy = await certificateClient.GetCertificateAsync(certProperties.Name);
+                results.Add(certWithPolicy.ToCertificateInfo());
+            }
             return results;
         }
 
@@ -138,6 +157,26 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Version = secret.Properties.Version,
                 Id = secret.Id.ToString(),
             };
+        }
+
+        public static CertificateInfo ToCertificateInfo(this KeyVaultCertificateWithPolicy cert)
+        {
+            var certInfo = new CertificateInfo
+            {
+                Name = cert.Name,
+                Version = cert.Properties.Version,
+                Id = cert.Id.ToString(),
+                Enabled = cert.Properties.Enabled,
+                Expires = cert.Properties.ExpiresOn?.DateTime,
+                NotBefore = cert.Properties.NotBefore?.DateTime,
+                Tags = cert.Properties.Tags,
+                ContentType = cert.Policy?.ContentType?.ToString(), // Convert enum to string
+                Thumbprint = cert.Properties.X509Thumbprint != null ? BitConverter.ToString(cert.Properties.X509Thumbprint).Replace("-", string.Empty) : null,
+                Certificate = cert.Cer != null ? new X509Certificate2(cert.Cer) : null,
+                Value = cert.Cer != null ? Convert.ToBase64String(cert.Cer) : null // Store base64 string of certificate
+            };
+
+            return certInfo;
         }
     }
 

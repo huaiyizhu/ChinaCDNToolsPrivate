@@ -178,16 +178,16 @@ namespace Mooncake.Cdn.CredentialManagementTool
             KeyVaultAccessV3 kv = new KeyVaultAccessV3(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
             {
-                //var certificates = await kv.GetAllCertificatesAsync().ConfigureAwait(false);
-                //Console.WriteLine($"Total certificates: {certificates.Count}");
-                //foreach (var cert in certificates)
-                //{
-                //    Console.WriteLine($"  {cert}");
-                //}
+                var certificates = await kv.GetAllCertificatesAsync().ConfigureAwait(false);
+                Console.WriteLine($"Total certificates: {certificates.Count}");
+                foreach (var cert in certificates)
+                {
+                    Console.WriteLine($"  {cert}");
+                }
             }
             else
             {
-                var secrets = await kv.GetAllSecretsAsync(includeCertificates: false, showSecretValue: command.GetSecretValue).ConfigureAwait(false);
+                var secrets = await kv.GetAllSecretsAsync(includeCertificates: false).ConfigureAwait(false);
                 Console.WriteLine($"Total secrets: {secrets.Count}");
                 foreach (var secret in secrets)
                 {
