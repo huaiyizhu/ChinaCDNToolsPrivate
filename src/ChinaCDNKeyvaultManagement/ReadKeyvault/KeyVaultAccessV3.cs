@@ -63,14 +63,25 @@ namespace Mooncake.Cdn.CredentialManagementTool
             await secretClient.SetSecretAsync(name, value);
         }
 
-        public async Task<List<KeyVaultSecret>> ListSecretsAsync()
+        public async Task<List<SecretInfo>> GetAllSecretsAsync(bool includeCertificates, bool showSecretValue)
         {
-            var results = new List<KeyVaultSecret>();
+            List<SecretInfo> results = new List<SecretInfo>();
             await foreach (var secretProperties in secretClient.GetPropertiesOfSecretsAsync())
             {
-                var secret = await secretClient.GetSecretAsync(secretProperties.Name);
-                results.Add(secret.Value);
+                if (secretProperties.Enabled.HasValue && !secretProperties.Enabled.Value)
+                {
+                    continue; // Skip disabled secrets if not requested
+                }
+
+                if (!includeCertificates && secretProperties.ContentType?.StartsWith("application/x-pkcs12") == true)
+                {
+                    continue; // Skip certificates if not requested
+                }
+
+                KeyVaultSecret secret = await secretClient.GetSecretAsync(secretProperties.Name);
+                results.Add(secret.ToSecretInfo());
             }
+
             return results;
         }
 
@@ -110,4 +121,24 @@ namespace Mooncake.Cdn.CredentialManagementTool
         }
 
     }
+
+    public static class CredentialUtilitiesV3
+    {
+        public static SecretInfo ToSecretInfo(this KeyVaultSecret secret)
+        {
+            return new SecretInfo
+            {
+                Name = secret.Name,
+                Value = secret.Value,
+                ContentType = secret.Properties.ContentType,
+                Enabled = secret.Properties.Enabled,
+                Expires = secret.Properties.ExpiresOn?.DateTime,
+                NotBefore = secret.Properties.NotBefore?.DateTime,
+                Tags = secret.Properties.Tags,
+                Version = secret.Properties.Version,
+                Id = secret.Id.ToString(),
+            };
+        }
+    }
+
 }

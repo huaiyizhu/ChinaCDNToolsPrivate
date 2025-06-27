@@ -166,24 +166,24 @@ namespace Mooncake.Cdn.CredentialManagementTool
             Console.WriteLine($"Begin to list v2 all {command.Target} of source key vault '{command.SrcKeyVault}', show secret value {command.GetSecretValue}...");
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
 
-            KeyVaultAccessV3 kvv3 = new KeyVaultAccessV3(srcKVInfo);
-            List<KeyVaultSecret> secrets = await kvv3.ListSecretsAsync().ConfigureAwait(false);
+            //KeyVaultAccessV3 kvv3 = new KeyVaultAccessV3(srcKVInfo);
+            //List<KeyVaultSecret> secrets = await kvv3.ListSecretsAsync().ConfigureAwait(false);
 
-            Console.WriteLine($"Total secrets: {secrets.Count}");
-            foreach (var secret in secrets)
-            {
-                Console.WriteLine($"  {secret}");
-            }
-            /*
-            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+            //Console.WriteLine($"Total secrets: {secrets.Count}");
+            //foreach (var secret in secrets)
+            //{
+            //    Console.WriteLine($"  {secret}");
+            //}
+            
+            KeyVaultAccessV3 kv = new KeyVaultAccessV3(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
             {
-                var certificates = await kv.GetAllCertificatesAsync().ConfigureAwait(false);
-                Console.WriteLine($"Total certificates: {certificates.Count}");
-                foreach (var cert in certificates)
-                {
-                    Console.WriteLine($"  {cert}");
-                }
+                //var certificates = await kv.GetAllCertificatesAsync().ConfigureAwait(false);
+                //Console.WriteLine($"Total certificates: {certificates.Count}");
+                //foreach (var cert in certificates)
+                //{
+                //    Console.WriteLine($"  {cert}");
+                //}
             }
             else
             {
@@ -195,7 +195,6 @@ namespace Mooncake.Cdn.CredentialManagementTool
                     Console.WriteLine($"  {result}");
                 }
             }
-            */
         }
 
         private async Task ProcessSyncAction(CommandOptions command)
