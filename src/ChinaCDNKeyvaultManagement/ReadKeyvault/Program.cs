@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
+using Azure.Security.KeyVault.Secrets;
 using CommandLine;
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Cloud.MooncakeService.Common;
@@ -165,8 +166,8 @@ namespace Mooncake.Cdn.CredentialManagementTool
             Console.WriteLine($"Begin to list v2 all {command.Target} of source key vault '{command.SrcKeyVault}', show secret value {command.GetSecretValue}...");
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
 
-            KeyVaultAccessV2 kvv2 = new KeyVaultAccessV2(srcKVInfo);
-            List<SecretInfo> secrets = await kvv2.ListSecretsAsync().ConfigureAwait(false);
+            KeyVaultAccessV3 kvv3 = new KeyVaultAccessV3(srcKVInfo);
+            List<KeyVaultSecret> secrets = await kvv3.ListSecretsAsync().ConfigureAwait(false);
 
             Console.WriteLine($"Total secrets: {secrets.Count}");
             foreach (var secret in secrets)
@@ -174,6 +175,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Console.WriteLine($"  {secret}");
             }
             /*
+            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
             {
                 var certificates = await kv.GetAllCertificatesAsync().ConfigureAwait(false);
@@ -530,7 +532,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployProdByCertApp2", "000be46d-6e2e-4ab9-b6f4-996e4d1e834d", AADAuthType.SNICertificate, "config.keyvault.access.cdn.azure.cn")
             .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCCSDeployProdCMEByCertApp3", "9a1a38f5-a221-4d21-9f3b-7655665f33fa", AADAuthType.CertificateThumbprint, "FE7A56C1DC4F91E7A2BA216C8464AB50AF29FB25")
             .AddAADSettingInfo(KeyVaultEnvironment.China, "KeyVaultMcCdnDeployTestCMEByCertApp", "d4837427-d2f6-45b7-a7b7-6402387e46b8", AADAuthType.CertificateThumbprint, "0ed3c86cda68e9f087a93ec25b95b7c71cb86ae6")
-            .AddAADSettingInfo(KeyVaultEnvironment.Global, "AFDCloudTestApp", "4af5dd89-61cc-483a-b93d-9c25ce954818", AADAuthType.SNICertificate, "config.keyvault.access.cdn.azure.cn");
+            .AddAADSettingInfo(KeyVaultEnvironment.Global, "AFDCloudTestApp", "4af5dd89-61cc-483a-b93d-9c25ce954818", AADAuthType.SNICertificate, "cdn.mdmclient.azurecdntest.geneva.keyvault.azurecdn.net");
             //.AddAADSettingInfo(KeyVaultEnvironment.China, "mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, "config.keyvault.access.cdn.azure.cn");
 
         private static readonly Dictionary<string, KeyVaultSettingInfo> predefinedKeyVaults = new Dictionary<string, KeyVaultSettingInfo>()
