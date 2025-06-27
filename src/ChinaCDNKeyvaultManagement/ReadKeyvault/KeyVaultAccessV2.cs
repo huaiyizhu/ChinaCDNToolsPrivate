@@ -181,6 +181,28 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 throw new ArgumentException($"Unable to detect key vault authority host for {vaultAddress}");
             }
         }
+
+        public async Task<List<CertificateInfo>> GetExistingCertificateWithAllVersionsAsync(string targetName)
+        {
+            var certs = new List<CertificateInfo>();
+            await foreach (var certProperties in certificateClient.GetPropertiesOfCertificateVersionsAsync(targetName))
+            {
+                KeyVaultCertificate cert = await certificateClient.GetCertificateVersionAsync(targetName, certProperties.Version).ConfigureAwait(false);
+                certs.Add(cert.ToCertificateInfo());
+            }
+            return certs;
+        }
+
+        public async Task<List<SecretInfo>> GetSecretItemWithAllVersionsAsync(string targetName)
+        {
+            var secrets = new List<SecretInfo>();
+            await foreach (var secretProperties in secretClient.GetPropertiesOfSecretVersionsAsync(targetName))
+            {
+                KeyVaultSecret secret = await secretClient.GetSecretAsync(secretProperties.Name, secretProperties.Version).ConfigureAwait(false);
+                secrets.Add(secret.ToSecretInfo());
+            }
+            return secrets;
+        }
     }
 
     public static class CredentialUtilitiesV3
