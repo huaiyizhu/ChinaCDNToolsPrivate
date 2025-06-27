@@ -13,19 +13,19 @@ namespace Mooncake.Cdn.CredentialManagementTool
     /// <summary>
     /// KeyVaultAccessV3 provides access to Azure Key Vault using SNI certificate (by SNI name) from local store, using Azure SDK and MSAL.
     /// </summary>
-    public class KeyVaultAccessV3 : IDisposable
+    public class KeyVaultAccessV2 : IDisposable
     {
         private SecretClient secretClient;
         private CertificateClient certificateClient;
         private string keyvaultUrl;
         private bool disposed = false;
 
-        public KeyVaultAccessV3(KeyVaultSettingInfo settingInfo)
+        public KeyVaultAccessV2(KeyVaultSettingInfo settingInfo)
             : this(settingInfo.Url, settingInfo.AADInfo.ClientId, settingInfo.AADInfo.CertificateThumbprintOrName, "common")
         {
         }
 
-        public KeyVaultAccessV3(string keyvaultUrl, string clientId, string sniCertName, string tenantId)
+        public KeyVaultAccessV2(string keyvaultUrl, string clientId, string sniCertName, string tenantId)
         {
             this.keyvaultUrl = keyvaultUrl;
             var cert = FindCertificateByName(sniCertName);
@@ -161,6 +161,13 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         public static CertificateInfo ToCertificateInfo(this KeyVaultCertificateWithPolicy cert)
         {
+            var contentType = cert.Policy?.ContentType != null ? cert.Policy.ContentType.ToString() : string.Empty;
+            var thumbprint = cert.Properties.X509Thumbprint != null
+                ? BitConverter.ToString(cert.Properties.X509Thumbprint).Replace("-", string.Empty)
+                : string.Empty;
+            var base64Value = cert.Cer != null ? Convert.ToBase64String(cert.Cer) : string.Empty;
+            var x509Cert = cert.Cer != null ? new X509Certificate2(cert.Cer) : null;
+
             var certInfo = new CertificateInfo
             {
                 Name = cert.Name,
@@ -170,10 +177,10 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Expires = cert.Properties.ExpiresOn?.DateTime,
                 NotBefore = cert.Properties.NotBefore?.DateTime,
                 Tags = cert.Properties.Tags,
-                ContentType = cert.Policy?.ContentType?.ToString(), // Convert enum to string
-                Thumbprint = cert.Properties.X509Thumbprint != null ? BitConverter.ToString(cert.Properties.X509Thumbprint).Replace("-", string.Empty) : null,
-                Certificate = cert.Cer != null ? new X509Certificate2(cert.Cer) : null,
-                Value = cert.Cer != null ? Convert.ToBase64String(cert.Cer) : null // Store base64 string of certificate
+                ContentType = contentType,
+                Thumbprint = thumbprint,
+                Certificate = x509Cert,
+                Value = base64Value
             };
 
             return certInfo;
