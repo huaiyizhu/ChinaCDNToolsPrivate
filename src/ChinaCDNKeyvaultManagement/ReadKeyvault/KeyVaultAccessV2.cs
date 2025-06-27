@@ -120,7 +120,50 @@ namespace Mooncake.Cdn.CredentialManagementTool
             disposed = true;
         }
 
-        public Uri GetKeyVaultAuthorityHost(Uri vaultAddress)
+        public async Task<CertificateInfo> GetExistingCertificateAsync(string targetName, string credentialVersion)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(credentialVersion))
+                {
+                    KeyVaultCertificateWithPolicy certWithPolicy = await certificateClient.GetCertificateAsync(targetName).ConfigureAwait(false);
+                    return certWithPolicy.ToCertificateInfo();
+                }
+                else
+                {
+                    KeyVaultCertificate cert = await certificateClient.GetCertificateVersionAsync(targetName, credentialVersion).ConfigureAwait(false);
+                    return cert.ToCertificateInfo();
+                }
+            }
+            catch (Azure.RequestFailedException ex)
+                when (ex.Status == 404)
+            {
+                return null;
+            }
+        }
+
+        public async Task<SecretInfo> GetSecretItemAsync(string targetName, string credentialVersion)
+        {
+            try
+            {
+                KeyVaultSecret secret;
+                if (string.IsNullOrEmpty(credentialVersion))
+                {
+                    secret = await secretClient.GetSecretAsync(targetName).ConfigureAwait(false);
+                }
+                else
+                {
+                    secret = await secretClient.GetSecretAsync(targetName, credentialVersion).ConfigureAwait(false);
+                }
+                return secret.ToSecretInfo();
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                return null;
+            }
+        }
+
+        private Uri GetKeyVaultAuthorityHost(Uri vaultAddress)
         {
             Requires.Argument(nameof(vaultAddress), vaultAddress).NotNull();
 
@@ -138,13 +181,17 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 throw new ArgumentException($"Unable to detect key vault authority host for {vaultAddress}");
             }
         }
-
     }
 
     public static class CredentialUtilitiesV3
     {
         public static SecretInfo ToSecretInfo(this KeyVaultSecret secret)
         {
+            if (secret == null)
+            {
+                return null;
+            }
+
             return new SecretInfo
             {
                 Name = secret.Name,
@@ -159,9 +206,13 @@ namespace Mooncake.Cdn.CredentialManagementTool
             };
         }
 
-        public static CertificateInfo ToCertificateInfo(this KeyVaultCertificateWithPolicy cert)
+        public static CertificateInfo ToCertificateInfo(this KeyVaultCertificate cert)
         {
-            var contentType = cert.Policy?.ContentType != null ? cert.Policy.ContentType.ToString() : string.Empty;
+            if (cert == null)
+            {
+                return null;
+            }
+
             var thumbprint = cert.Properties.X509Thumbprint != null
                 ? BitConverter.ToString(cert.Properties.X509Thumbprint).Replace("-", string.Empty)
                 : string.Empty;
@@ -177,13 +228,20 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Expires = cert.Properties.ExpiresOn?.DateTime,
                 NotBefore = cert.Properties.NotBefore?.DateTime,
                 Tags = cert.Properties.Tags,
-                ContentType = contentType,
                 Thumbprint = thumbprint,
                 Certificate = x509Cert,
                 Value = base64Value
             };
 
             return certInfo;
+        }
+
+        public static CertificateInfo ToCertificateInfo(this KeyVaultCertificateWithPolicy cert)
+        {
+            CertificateInfo info = (cert as KeyVaultCertificate).ToCertificateInfo();
+            var contentType = cert.Policy?.ContentType != null ? cert.Policy.ContentType.ToString() : string.Empty;
+            info.ContentType = contentType;
+            return info;
         }
     }
 

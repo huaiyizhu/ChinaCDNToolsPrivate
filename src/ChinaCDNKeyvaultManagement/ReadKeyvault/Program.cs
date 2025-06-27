@@ -245,7 +245,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
             Console.WriteLine($"Begin to find {command.Target} '{command.TargetName}' with version '{command.CredentialVersion}' under key vault '{command.SrcKeyVault}', show secret value: {command.GetSecretValue}");
             KeyVaultSettingInfo srcKV = GetPredefinedKeyVaults(command.SrcKeyVault);
-            KeyVaultAccess kv = new KeyVaultAccess(srcKV);
+            KeyVaultAccessV2 kv = new KeyVaultAccessV2(srcKV);
             if (command.Target == OperationTarget.certificate)
             {
                 var cert = await kv.GetExistingCertificateAsync(command.TargetName, command.CredentialVersion).ConfigureAwait(false);
