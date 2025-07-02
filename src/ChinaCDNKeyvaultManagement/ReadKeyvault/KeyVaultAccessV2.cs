@@ -251,6 +251,140 @@ namespace Mooncake.Cdn.CredentialManagementTool
             await secretClient.UpdateSecretPropertiesAsync(secret.Properties).ConfigureAwait(false);
             Console.WriteLine("Completed");
         }
+
+        public async Task ImportSecretsAndCertsAsync(List<SecretInfo> secretInfos, bool overwriteExisting)
+        {
+            foreach (var info in secretInfos)
+            {
+                bool isCertificate = info is CertificateInfo || (info.ContentType != null && info.ContentType.StartsWith("application/x-pkcs12"));
+                try
+                {
+                    if (isCertificate)
+                    {
+                        var cert = await certificateClient.GetCertificateAsync(info.Name).ConfigureAwait(false);
+                        Console.WriteLine($"[====Warning===] Certificate {info.Name} already in keyvault");
+                    }
+                    else
+                    {
+                        var secretResponse = await secretClient.GetSecretAsync(info.Name).ConfigureAwait(false);
+                        var secret = secretResponse.Value;
+                        Console.WriteLine($"[====Warning===] Secret {info.Name} already in keyvault. Value: {secret.Value}");
+                        if (overwriteExisting)
+                        {
+                            if (secret.Value != info.Value ||
+                                info.Expires != secret.Properties.ExpiresOn?.DateTime ||
+                                info.NotBefore != secret.Properties.NotBefore?.DateTime)
+                            {
+                                Console.WriteLine($"Importing Secret {info.Name} with new value '{info.Value}' to keyvault {this.keyvaultUrl}...");
+                                var newSecret = new KeyVaultSecret(info.Name, info.Value)
+                                {
+                                    Properties =
+                                    {
+                                        ExpiresOn = info.Expires,
+                                        NotBefore = info.NotBefore,
+                                        ContentType = info.ContentType
+                                    }
+                                };
+                                if (info.Tags != null)
+                                {
+                                    foreach (var tag in info.Tags)
+                                        newSecret.Properties.Tags[tag.Key] = tag.Value;
+                                }
+                                await secretClient.SetSecretAsync(newSecret).ConfigureAwait(false);
+                                Console.WriteLine("Completed");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Same secret value for secret {info.Name}, skip import");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Skip import, please use '--force' to force sync new secret value for secret {info.Name}");
+                        }
+                    }
+                }
+                catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+                {
+                    if (isCertificate)
+                    {
+                        Console.WriteLine($"Importing Certificate {info.Name} to keyvault {this.keyvaultUrl}...");
+                        try
+                        {
+                            var importOptions = new ImportCertificateOptions(info.Name, Convert.FromBase64String(info.Value))
+                            {
+                                Enabled = info.Enabled
+                            };
+                            if (info.Tags != null)
+                            {
+                                foreach (var tag in info.Tags)
+                                    importOptions.Tags.Add(tag.Key, tag.Value);
+                            }
+                            await certificateClient.ImportCertificateAsync(importOptions).ConfigureAwait(false);
+                            Console.WriteLine("Completed");
+                        }
+                        catch (Exception newex)
+                        {
+                            Console.WriteLine($"[================== Skip error certificate {info.Name} for message: {newex.Message} ====================]");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Importing Secret {info.Name} to keyvault {this.keyvaultUrl}...");
+                        var newSecret = new KeyVaultSecret(info.Name, info.Value)
+                        {
+                            Properties =
+                            {
+                                ExpiresOn = info.Expires,
+                                NotBefore = info.NotBefore,
+                                ContentType = info.ContentType
+                            }
+                        };
+                        if (info.Tags != null)
+                        {
+                            foreach (var tag in info.Tags)
+                                newSecret.Properties.Tags[tag.Key] = tag.Value;
+                        }
+                        await secretClient.SetSecretAsync(newSecret).ConfigureAwait(false);
+                        Console.WriteLine("Completed");
+                    }
+                }
+            }
+        }
+
+        public async Task ImportCertificateAsync(CertificateInfo cert, bool overwriteExisting)
+        {
+            var existingCert = await GetExistingCertificateAsync(cert.Name, null).ConfigureAwait(false);
+            bool doImport = false;
+            if (existingCert != null)
+            {
+                Console.WriteLine($"[====Warning===] Certificate {cert.Name}: Overwrite Existing: {overwriteExisting}.\n\tExisting: {existingCert.Thumbprint}\n\tNew:      {cert.Thumbprint}");
+                doImport = overwriteExisting && existingCert.Thumbprint != cert.Thumbprint;
+            }
+            else
+            {
+                doImport = true;
+            }
+            if (doImport)
+            {
+                Console.WriteLine($"Importing Certificate {cert.Name} {cert.Thumbprint} to keyvault {this.keyvaultUrl}...");
+                var importOptions = new ImportCertificateOptions(cert.Name, Convert.FromBase64String(cert.Value))
+                {
+                    Enabled = cert.Enabled
+                };
+                if (cert.Tags != null)
+                {
+                    foreach (var tag in cert.Tags)
+                        importOptions.Tags.Add(tag.Key, tag.Value);
+                }
+                await certificateClient.ImportCertificateAsync(importOptions).ConfigureAwait(false);
+                Console.WriteLine("Completed");
+            }
+            else
+            {
+                Console.WriteLine($"Skip import, please use '--force' to force sync new certificate {cert.Name}");
+            }
+        }
     }
 
     public static class CredentialUtilitiesV3

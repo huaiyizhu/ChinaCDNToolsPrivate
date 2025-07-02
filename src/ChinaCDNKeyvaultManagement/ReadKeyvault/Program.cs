@@ -435,14 +435,14 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         private static async Task CopySecretAsync(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string secretName, string srcVersion, bool overwriteExisting = false)
         {
-            KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
+            KeyVaultAccessV2 srckv = new KeyVaultAccessV2(srcKvInfo);
             var secretItem = await srckv.GetSecretItemAsync(secretName, srcVersion).ConfigureAwait(false);
             if (secretItem == null)
             {
                 throw new ArgumentException($"Cannot get secret '{secretName}' with version '{srcVersion}' in source key vault '{srcKvInfo.Url}'");
             }
 
-            KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
+            KeyVaultAccessV2 dstkv = new KeyVaultAccessV2(dstKvInfo);
             await dstkv.ImportSecretsAndCertsAsync(new SecretInfo[] { secretItem }.ToList(), overwriteExisting).ConfigureAwait(false);
         }
 
@@ -457,7 +457,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         private static async Task CopyCertificate(KeyVaultSettingInfo srcKvInfo, KeyVaultSettingInfo dstKvInfo, string name, string srcVersion, bool overwriteExisting = false)
         {
-            KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
+            KeyVaultAccessV2 srckv = new KeyVaultAccessV2(srcKvInfo);
             var cert = await srckv.GetExistingCertificateAsync(name, srcVersion).ConfigureAwait(false);
 
             if (cert == null)
@@ -465,7 +465,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 throw new KeyNotFoundException($"Cannot find certificate {name} with version '{srcVersion}' from source key vault {srcKvInfo.Url}");
             }
 
-            KeyVaultAccess dstkv = new KeyVaultAccess(dstKvInfo);
+            KeyVaultAccessV2 dstkv = new KeyVaultAccessV2(dstKvInfo);
             await dstkv.ImportCertificateAsync(cert, overwriteExisting).ConfigureAwait(false);
         }
 
@@ -526,7 +526,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             //.AddAADSettingInfo(KeyVaultEnvironment.China, "mccdn-keyvault-reader", "d144f18e-c146-4d94-b9de-8f942bd30ccf", null, "config.keyvault.access.cdn.azure.cn");
 
         private static readonly Dictionary<string, KeyVaultSettingInfo> predefinedKeyVaults = new Dictionary<string, KeyVaultSettingInfo>()
-            .AddKeyVault("mccdnintkvn2", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
+            .AddKeyVault("mccdnintkvn2", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Int"])
             .AddKeyVault("test001", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("cdnbillingkvprod", PredefinedAADInfo["KeyVaultMcCdnDeployProdCMEByCertApp2"])
             .AddKeyVault("mccdnsecretsholdertest", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
