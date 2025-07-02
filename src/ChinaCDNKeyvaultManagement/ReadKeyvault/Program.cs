@@ -471,7 +471,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
 
         private static async Task DownloadCertificate(KeyVaultSettingInfo srcKvInfo, string name, string srcVersion, bool overwriteExisting = false)
         {
-            KeyVaultAccess srckv = new KeyVaultAccess(srcKvInfo);
+            KeyVaultAccessV2 srckv = new KeyVaultAccessV2(srcKvInfo);
             var cert = await srckv.GetExistingCertificateAsync(name, srcVersion).ConfigureAwait(false);
 
             if (cert == null)
