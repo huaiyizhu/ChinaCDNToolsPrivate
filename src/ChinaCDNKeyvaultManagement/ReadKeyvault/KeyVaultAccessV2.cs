@@ -203,6 +203,28 @@ namespace Mooncake.Cdn.CredentialManagementTool
             }
             return secrets;
         }
+
+        public async Task WriteSecretAsync(string targetName, string value, DateTimeOffset expiredDate, bool overrideIfExist)
+        {
+            try
+            {
+                var secretResponse = await secretClient.GetSecretAsync(targetName).ConfigureAwait(false);
+                var secret = secretResponse.Value;
+                Console.WriteLine($"[====Warning===] Secret {targetName} already in keyvault {this.keyvaultUrl}");
+                if (overrideIfExist)
+                {
+                    Console.WriteLine($"Importing Secret {targetName} to keyvault {this.keyvaultUrl}, expired date {expiredDate}");
+                    var newSecret = new KeyVaultSecret(targetName, value) { Properties = { ExpiresOn = expiredDate } };
+                    await secretClient.SetSecretAsync(newSecret).ConfigureAwait(false);
+                }
+            }
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
+            {
+                Console.WriteLine($"Importing Secret {targetName} to keyvault {this.keyvaultUrl}");
+                var secret = new KeyVaultSecret(targetName, value) { Properties = { ExpiresOn = expiredDate } };
+                await secretClient.SetSecretAsync(secret).ConfigureAwait(false);
+            }
+        }
     }
 
     public static class CredentialUtilitiesV3

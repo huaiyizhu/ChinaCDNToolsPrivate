@@ -113,7 +113,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             }
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
-            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+            KeyVaultAccessV2 kv = new KeyVaultAccessV2(srcKVInfo);
 
             await kv.WriteSecretAsync(command.TargetName, finalValue, command.ExpiredDate.Value, command.OverrideIfExist).ConfigureAwait(false);
 
@@ -536,7 +536,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             .AddKeyVault("mccdnprod", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             .AddKeyVault("sfmccdnprodkv", PredefinedAADInfo["KeyVaultMcCdnDeployProdByCertApp2"])
             .AddKeyVault("mccdndeployprod-cme", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Prod"])
-            .AddKeyVault("mccdndeploytest-cme", PredefinedAADInfo["KeyVaultMcCdnDeployTestCMEByCertApp"])
+            .AddKeyVault("mccdndeploytest-cme", PredefinedAADInfo["ChinaCDNCredentialKeyVaultAccess.Int"])
             .AddKeyVault("mccdndeploytest", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("mccdn-prodsecrets-holder", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
             .AddKeyVault("cert-holder-del-2020-07", PredefinedAADInfo["KeyVaultMcCdnDeployTestByCertApp"])
