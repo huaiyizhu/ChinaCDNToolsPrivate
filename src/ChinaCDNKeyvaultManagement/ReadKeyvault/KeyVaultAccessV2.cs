@@ -124,19 +124,19 @@ namespace Mooncake.Cdn.CredentialManagementTool
         {
             try
             {
+                KeyVaultSecret secret;
                 if (string.IsNullOrEmpty(credentialVersion))
                 {
-                    KeyVaultCertificateWithPolicy certWithPolicy = await certificateClient.GetCertificateAsync(targetName).ConfigureAwait(false);
-                    return certWithPolicy.ToCertificateInfo();
+                    secret = await secretClient.GetSecretAsync(targetName).ConfigureAwait(false);
                 }
                 else
                 {
-                    KeyVaultCertificate cert = await certificateClient.GetCertificateVersionAsync(targetName, credentialVersion).ConfigureAwait(false);
-                    return cert.ToCertificateInfo();
+                    secret = await secretClient.GetSecretAsync(targetName, credentialVersion).ConfigureAwait(false);
                 }
+                // Convert the secret (PFX) to CertificateInfo, which includes the private key
+                return secret.ToCertificateInfo();
             }
-            catch (Azure.RequestFailedException ex)
-                when (ex.Status == 404)
+            catch (Azure.RequestFailedException ex) when (ex.Status == 404)
             {
                 return null;
             }
@@ -368,7 +368,16 @@ namespace Mooncake.Cdn.CredentialManagementTool
             if (doImport)
             {
                 Console.WriteLine($"Importing Certificate {cert.Name} {cert.Thumbprint} to keyvault {this.keyvaultUrl}...");
-                var importOptions = new ImportCertificateOptions(cert.Name, Convert.FromBase64String(cert.Value))
+
+                // Validate that the PFX contains a private key
+                var pfxBytes = Convert.FromBase64String(cert.Value);
+                var x509 = new X509Certificate2(pfxBytes, (string)null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+                if (!x509.HasPrivateKey)
+                {
+                    throw new InvalidOperationException("The certificate being imported does not contain a private key. Please ensure the PFX includes the private key.");
+                }
+
+                var importOptions = new ImportCertificateOptions(cert.Name, pfxBytes)
                 {
                     Enabled = cert.Enabled
                 };
@@ -447,6 +456,42 @@ namespace Mooncake.Cdn.CredentialManagementTool
             info.ContentType = contentType;
             return info;
         }
-    }
 
+        public static CertificateInfo ToCertificateInfo(this KeyVaultSecret secret)
+        {
+            if (secret == null)
+            {
+                return null;
+            }
+
+            // The secret value is a base64-encoded PFX/PKCS#12 containing the private key
+            X509Certificate2 x509cert = null;
+            string thumbprint = string.Empty;
+            try
+            {
+                var raw = Convert.FromBase64String(secret.Value);
+                x509cert = new X509Certificate2(raw, (string)null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+                thumbprint = x509cert.Thumbprint;
+            }
+            catch
+            {
+                // If not a valid PFX, leave x509cert and thumbprint as null/empty
+            }
+
+            return new CertificateInfo
+            {
+                Name = secret.Name,
+                Value = secret.Value,
+                ContentType = secret.Properties.ContentType,
+                Enabled = secret.Properties.Enabled,
+                Expires = secret.Properties.ExpiresOn?.DateTime,
+                NotBefore = secret.Properties.NotBefore?.DateTime,
+                Tags = secret.Properties.Tags,
+                Version = secret.Properties.Version,
+                Id = secret.Id.ToString(),
+                Certificate = x509cert,
+                Thumbprint = thumbprint
+            };
+        }
+    }
 }
