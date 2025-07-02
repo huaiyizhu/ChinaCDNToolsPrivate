@@ -204,26 +204,52 @@ namespace Mooncake.Cdn.CredentialManagementTool
             return secrets;
         }
 
-        public async Task WriteSecretAsync(string targetName, string value, DateTimeOffset expiredDate, bool overrideIfExist)
+        public async Task WriteSecretAsync(string secretName, string value, DateTimeOffset expiredDate, bool overrideIfExist)
         {
             try
             {
-                var secretResponse = await secretClient.GetSecretAsync(targetName).ConfigureAwait(false);
+                var secretResponse = await secretClient.GetSecretAsync(secretName).ConfigureAwait(false);
                 var secret = secretResponse.Value;
-                Console.WriteLine($"[====Warning===] Secret {targetName} already in keyvault {this.keyvaultUrl}");
+                Console.WriteLine($"[====Warning===] Secret {secretName} already in keyvault {this.keyvaultUrl}");
                 if (overrideIfExist)
                 {
-                    Console.WriteLine($"Importing Secret {targetName} to keyvault {this.keyvaultUrl}, expired date {expiredDate}");
-                    var newSecret = new KeyVaultSecret(targetName, value) { Properties = { ExpiresOn = expiredDate } };
+                    Console.Write($"Importing Secret {secretName} to keyvault {this.keyvaultUrl}, expired date {expiredDate}...");
+                    var newSecret = new KeyVaultSecret(secretName, value) { Properties = { ExpiresOn = expiredDate } };
                     await secretClient.SetSecretAsync(newSecret).ConfigureAwait(false);
+                    Console.WriteLine("Completed");
+                }
+                else
+                {
+                    Console.WriteLine($"Skipping import of Secret {secretName} to keyvault {this.keyvaultUrl} as it already exists.");
                 }
             }
             catch (Azure.RequestFailedException ex) when (ex.Status == 404)
             {
-                Console.WriteLine($"Importing Secret {targetName} to keyvault {this.keyvaultUrl}");
-                var secret = new KeyVaultSecret(targetName, value) { Properties = { ExpiresOn = expiredDate } };
+                Console.WriteLine($"Importing Secret {secretName} to keyvault {this.keyvaultUrl}");
+                var secret = new KeyVaultSecret(secretName, value) { Properties = { ExpiresOn = expiredDate } };
                 await secretClient.SetSecretAsync(secret).ConfigureAwait(false);
             }
+        }
+
+        public async Task UpdateSecretExpirationDateAsync(string secretName, string secretVersion, DateTimeOffset expireDate)
+        {
+            Console.Write($"Updating secret {secretName} expire date {expireDate} with version '{secretVersion}'...");
+
+            // Fetch the secret (with or without version)
+            KeyVaultSecret secret;
+            if (string.IsNullOrEmpty(secretVersion))
+            {
+                secret = await secretClient.GetSecretAsync(secretName).ConfigureAwait(false);
+            }
+            else
+            {
+                secret = await secretClient.GetSecretAsync(secretName, secretVersion).ConfigureAwait(false);
+            }
+
+            // Update the expiration date
+            secret.Properties.ExpiresOn = expireDate;
+            await secretClient.UpdateSecretPropertiesAsync(secret.Properties).ConfigureAwait(false);
+            Console.WriteLine("Completed");
         }
     }
 

@@ -128,7 +128,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             Console.WriteLine($"Begin to update for {command.Target} '{command.TargetName}' with version '{command.CredentialVersion}' from source key vault '{command.SrcKeyVault}', new expired date {command.ExpiredDate}...");
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
-            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+            KeyVaultAccessV2 kv = new KeyVaultAccessV2(srcKVInfo);
 
             await kv.UpdateSecretExpirationDateAsync(command.TargetName, command.CredentialVersion, command.ExpiredDate.Value).ConfigureAwait(false);
         }
