@@ -150,7 +150,7 @@ namespace Mooncake.Cdn.CredentialManagementTool
             Console.WriteLine($"Comfirmed to delete {command.Target} {command.TargetName} from source key vault {command.SrcKeyVault}");
 
             KeyVaultSettingInfo srcKVInfo = GetPredefinedKeyVaults(command.SrcKeyVault);
-            KeyVaultAccess kv = new KeyVaultAccess(srcKVInfo);
+            KeyVaultAccessV2 kv = new KeyVaultAccessV2(srcKVInfo);
             if (command.Target == OperationTarget.certificate)
             {
                 await kv.DeleteCertificateAsync(command.TargetName).ConfigureAwait(false);

@@ -394,6 +394,22 @@ namespace Mooncake.Cdn.CredentialManagementTool
                 Console.WriteLine($"Skip import, please use '--force' to force sync new certificate {cert.Name}");
             }
         }
+
+        public async Task DeleteCertificateAsync(string certName)
+        {
+            Console.Write("Deleting certificate {0} ...", certName);
+            // Deletes a certificate from the Key Vault
+            await certificateClient.StartDeleteCertificateAsync(certName).ConfigureAwait(false);
+            Console.WriteLine("Completed");
+        }
+
+        public async Task DeleteSecretAsync(string secretName)
+        {
+            Console.Write("Deleting secret {0} ...", secretName);
+            // Deletes a secret from the Key Vault
+            await secretClient.StartDeleteSecretAsync(secretName).ConfigureAwait(false);
+            Console.WriteLine("Completed");
+        }
     }
 
     public static class CredentialUtilitiesV3
